@@ -193,6 +193,7 @@ const bufferCache = new Map();
 const voices = new Array(6).fill(null); // current ringing voice per string
 const PICK_VOL = 0.6;                          // every pick/strum hits at the same volume
 const HAMMER_GLIDE = 0.04, SLIDE_GLIDE = 0.12; // seconds to bend pitch (hammer = quick, slide = smooth)
+const RING_SECONDS = 3.0;                      // every string rings for this long, regardless of pitch
 
 function initAudio() {
   if (ctx) return;
@@ -219,13 +220,25 @@ function pluckBuffer(freq) {
   if (bufferCache.has(key)) return bufferCache.get(key);
   const sr = ctx.sampleRate;
   const N = Math.max(2, Math.round(sr / freq));
-  const len = Math.floor(sr * 3.2);
+  const len = Math.floor(sr * (RING_SECONDS + 0.15));
   const buf = ctx.createBuffer(1, len, sr);
   const y = buf.getChannelData(0);
   let prev = 0;
   for (let i = 0; i < N; i++) { const raw = Math.random() * 2 - 1; prev = 0.5 * (raw + prev); y[i] = prev; }
-  const damping = 0.998 - Math.min(0.01, freq / 90000);
-  for (let i = N; i < len; i++) y[i] = damping * 0.5 * (y[i - N] + y[i - N + 1]);
+  // Gentle, near pitch-independent loop loss so low and high strings decay alike.
+  const DAMP = 0.9999, BLEND = 0.2;
+  for (let i = N; i < len; i++) {
+    const avg = 0.5 * (y[i - N] + y[i - N + 1]);
+    y[i] = DAMP * ((1 - BLEND) * y[i - N] + BLEND * avg);
+  }
+  // Bake an identical fade into every note so all strings ring the same length and end together.
+  const fade = 0.12;
+  for (let i = 0; i < len; i++) {
+    const t = i / sr;
+    let env = t < RING_SECONDS ? Math.pow(10, (-48 / 20) * (t / RING_SECONDS)) : 0;
+    if (t > RING_SECONDS - fade) env *= Math.max(0, (RING_SECONDS - t) / fade);
+    y[i] *= env;
+  }
   // normalize peak so every note (low or high) comes out at the same level
   let peak = 0;
   for (let i = 0; i < len; i++) { const a = Math.abs(y[i]); if (a > peak) peak = a; }
@@ -260,7 +273,7 @@ function startVoice(i, vol) {
   g.gain.value = vol;
   src.connect(g); g.connect(master);
   src.start();
-  src.stop(ctx.currentTime + 3.2);
+  src.stop(ctx.currentTime + RING_SECONDS + 0.05);
   const v = { src, g, baseFreq: base };
   voices[i] = v;
   src.onended = () => { if (voices[i] === v) voices[i] = null; };
