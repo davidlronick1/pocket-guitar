@@ -11,6 +11,8 @@
     --bg: #1a120b;
     --wood: #3a2417;
     --wood-light: #5a3a23;
+    --fb1: #4a2f1c;
+    --fb2: #311d11;
     --amber: #e8a14b;
     --amber-bright: #ffc777;
     --string: #d9c4a3;
@@ -20,187 +22,207 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; padding: 0; height: 100%; overflow: hidden;
-    background: var(--bg);
-    color: var(--text);
+    background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    user-select: none; -webkit-user-select: none;
-    touch-action: none;
+    user-select: none; -webkit-user-select: none; touch-action: none;
   }
   #app { display: flex; flex-direction: column; height: 100%; height: 100dvh; }
 
-  /* ---- top bar ---- */
+  /* ---- slim top bar ---- */
   #topbar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
+    padding: 4px 12px; padding-top: max(4px, env(safe-area-inset-top));
     background: linear-gradient(180deg, #2a1a10, #1a120b);
-    border-bottom: 1px solid #000;
+    border-bottom: 1px solid #000; flex: 0 0 auto;
   }
-  #topbar h1 { font-size: 16px; margin: 0; letter-spacing: 0.5px; font-weight: 600; }
+  #topbar h1 { font-size: 13px; margin: 0; letter-spacing: .5px; font-weight: 600; }
   #topbar h1 span { color: var(--amber); }
+  .controls { display: flex; gap: 8px; }
   .chip {
-    font-size: 12px; padding: 6px 10px; border-radius: 14px;
+    font-size: 11px; padding: 5px 10px; border-radius: 13px;
     background: #2c1c11; border: 1px solid #4a3019; color: var(--muted);
   }
   .chip.on { color: #0c0c0c; background: var(--amber); border-color: var(--amber-bright); font-weight: 600; }
 
-  /* ---- main play area ---- */
+  /* ---- play area: fretboard + strum ---- */
   #play { flex: 1; display: flex; min-height: 0; }
 
-  /* chord rail */
-  #chords {
-    width: 38%; max-width: 220px;
-    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-    padding: 10px; align-content: start;
-    background: linear-gradient(180deg, #241710, #1d130c);
-    border-right: 2px solid #000; overflow-y: auto;
+  #fretboard {
+    flex: 1; display: flex; flex-direction: column; min-width: 0;
+    background: linear-gradient(160deg, var(--fb1), var(--fb2) 70%, #271810);
   }
-  .chord {
-    display: flex; align-items: center; justify-content: center;
-    aspect-ratio: 1 / 1;
-    border-radius: 12px;
-    background: linear-gradient(160deg, var(--wood-light), var(--wood));
-    border: 1px solid #6b4527;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.4);
-    font-size: 20px; font-weight: 700; color: var(--text);
-    transition: transform .05s ease, background .12s ease, box-shadow .12s ease;
-  }
-  .chord.active {
-    background: linear-gradient(160deg, var(--amber-bright), var(--amber));
-    color: #2a1a0a; border-color: #ffe0a8;
-    box-shadow: 0 0 16px rgba(232,161,75,.6), inset 0 1px 0 rgba(255,255,255,.3);
-    transform: scale(1.04);
-  }
+  #fbhead { display: flex; height: 16px; flex: 0 0 auto; }
+  .fhcell { flex: 1; text-align: center; font-size: 9px; line-height: 16px; color: rgba(255,255,255,.4); }
+  .fhcell.nut { flex: 0 0 46px; }
 
-  /* strings */
-  #strings {
-    flex: 1; position: relative;
-    display: flex; flex-direction: column;
-    padding: 4px 0;
-    background:
-      repeating-linear-gradient(180deg, rgba(0,0,0,.12) 0 2px, transparent 2px 4px),
-      linear-gradient(120deg, #4a2f1c, #321f12 60%, #271810);
+  .fret-row {
+    flex: 1; position: relative; display: flex; min-height: 0;
+    border-bottom: 1px solid rgba(0,0,0,.25);
   }
-  .string-lane {
-    flex: 1; position: relative; display: flex; align-items: center;
-  }
+  .fret-row:last-child { border-bottom: none; }
   .string-line {
+    position: absolute; left: 46px; right: 0; top: 50%;
+    height: var(--thick, 2px); transform: translateY(-50%);
+    background: linear-gradient(180deg, #fff6e0, var(--string) 40%, #9c8763);
+    border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.5);
+    pointer-events: none; z-index: 1;
+  }
+  .fret-row.muted .string-line { opacity: .22; }
+  .string-line.pluck { animation: pluck .5s ease-out; }
+  @keyframes pluck {
+    0%   { filter: none; transform: translateY(-50%) scaleY(1); }
+    12%  { filter: brightness(1.9); transform: translateY(-50%) scaleY(3.2); box-shadow: 0 0 14px rgba(255,210,120,.9); }
+    100% { filter: none; transform: translateY(-50%) scaleY(1); }
+  }
+  .cell {
+    flex: 1; position: relative; z-index: 2;
+    border-right: 2px solid rgba(0,0,0,.45);
+  }
+  .cell.nut {
+    flex: 0 0 46px;
+    border-right: 4px solid #e8d9b5;
+    background: linear-gradient(90deg, rgba(0,0,0,.25), rgba(0,0,0,0));
+  }
+  /* fretboard inlay dots (decoration) on frets 3 & 5, middle strings */
+  .cell.inlay::before {
+    content: ''; position: absolute; left: 50%; top: 0; width: 7px; height: 7px;
+    transform: translate(-50%, -3.5px); border-radius: 50%;
+    background: rgba(255,245,220,.18);
+  }
+  .cell.pressed::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 26px; height: 26px; transform: translate(-50%, -50%); border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--amber) 55%, #b9742a);
+    box-shadow: 0 1px 4px rgba(0,0,0,.6); z-index: 3;
+  }
+  .cell.nut::after {
+    content: attr(data-mark); position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%); font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,.55);
+  }
+  .cell.nut[data-mark="\00d7"]::after { color: #e87a5a; }
+
+  /* ---- strum strip ---- */
+  #strum {
+    flex: 0 0 116px; display: flex; flex-direction: column;
+    border-left: 3px solid #1c120a;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(0,0,0,.45), transparent 70%),
+      linear-gradient(180deg, #6b4326, #4a2d18);
+  }
+  .strum-row {
+    flex: 1; position: relative; display: flex; align-items: center;
+    border-bottom: 1px solid rgba(0,0,0,.2);
+  }
+  .strum-row:last-child { border-bottom: none; }
+  .strum-row .stub {
     position: absolute; left: 0; right: 0; top: 50%;
     height: var(--thick, 2px); transform: translateY(-50%);
     background: linear-gradient(180deg, #fff6e0, var(--string) 40%, #9c8763);
-    border-radius: 2px;
-    box-shadow: 0 1px 2px rgba(0,0,0,.5);
+    box-shadow: 0 1px 2px rgba(0,0,0,.5); pointer-events: none;
   }
-  .string-line.pluck { animation: pluck .5s ease-out; }
-  @keyframes pluck {
-    0%   { box-shadow: 0 0 0 rgba(255,210,120,0); filter: none; transform: translateY(-50%) scaleY(1); }
-    12%  { box-shadow: 0 0 14px rgba(255,210,120,.9); filter: brightness(1.8); transform: translateY(-50%) scaleY(3.5); }
-    100% { box-shadow: 0 0 0 rgba(255,210,120,0); filter: none; transform: translateY(-50%) scaleY(1); }
-  }
-  .string-label {
-    position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
-    font-size: 10px; color: rgba(255,255,255,.35); pointer-events: none;
-  }
-  .hint {
-    position: absolute; right: 10px; bottom: 8px;
-    font-size: 11px; color: rgba(255,255,255,.3); pointer-events: none;
+  .strum-row .stub.pluck { animation: pluck .5s ease-out; }
+  #strumLabel {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%) rotate(90deg);
+    transform-origin: right center; font-size: 10px; color: rgba(255,255,255,.3);
+    pointer-events: none; white-space: nowrap;
   }
 
-  /* ---- start overlay ---- */
-  #overlay {
+  /* ---- overlays ---- */
+  .overlay {
     position: fixed; inset: 0; z-index: 50;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; padding: 24px;
-    background: radial-gradient(circle at 50% 35%, #2c1a10, #120c07);
+    background: radial-gradient(circle at 50% 40%, #2c1a10, #120c07);
   }
-  #overlay h2 { font-size: 28px; margin: 0 0 6px; }
-  #overlay h2 span { color: var(--amber); }
-  #overlay p { color: var(--muted); max-width: 320px; line-height: 1.5; margin: 6px 0 24px; }
+  .overlay h2 { font-size: 26px; margin: 0 0 6px; }
+  .overlay h2 span { color: var(--amber); }
+  .overlay p { color: var(--muted); max-width: 360px; line-height: 1.5; margin: 6px 0 22px; }
   #startBtn {
-    font-size: 18px; font-weight: 700; color: #2a1a0a;
+    font-size: 17px; font-weight: 700; color: #2a1a0a;
     background: linear-gradient(160deg, var(--amber-bright), var(--amber));
-    border: none; border-radius: 30px; padding: 16px 40px;
+    border: none; border-radius: 28px; padding: 14px 36px;
     box-shadow: 0 6px 20px rgba(232,161,75,.45);
   }
   #startBtn:active { transform: scale(.97); }
+  .rotate-icon { font-size: 40px; margin-bottom: 10px; animation: rock 1.8s ease-in-out infinite; }
+  @keyframes rock { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(78deg); } }
   .hidden { display: none !important; }
+
+  /* show rotate overlay only in portrait */
+  #rotate { display: none; }
+  @media (orientation: portrait) {
+    #rotate { display: flex; }
+    #play, #topbar { filter: blur(2px); }
+  }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="topbar">
     <h1>Pocket <span>Guitar</span></h1>
-    <div id="tiltChip" class="chip">Tilt: off</div>
+    <div class="controls">
+      <div id="resetChip" class="chip">Open strings</div>
+      <div id="tiltChip" class="chip">Tilt: off</div>
+    </div>
   </div>
   <div id="play">
-    <div id="chords"></div>
-    <div id="strings"></div>
+    <div id="fretboard"></div>
+    <div id="strum"><div id="strumLabel">strum / pick &rarr;</div></div>
   </div>
 </div>
 
-<div id="overlay">
+<!-- start / audio-unlock overlay -->
+<div id="start" class="overlay">
   <h2>Pocket <span>Guitar</span></h2>
-  <p>Pick a chord with your left thumb. Strum or fingerpick the strings with your right thumb. Strum faster to play louder.</p>
+  <p>Hold your phone sideways. Press the frets with your left fingers to shape a chord, then strum or pick the strings on the right. Strum faster to play louder.</p>
   <button id="startBtn">Tap to start playing</button>
+</div>
+
+<!-- portrait nudge -->
+<div id="rotate" class="overlay">
+  <div class="rotate-icon">&#128241;</div>
+  <h2>Turn sideways</h2>
+  <p>Pocket Guitar plays in landscape, like holding a real neck. Rotate your phone to play. (Tip: turn off rotation lock in Control Center.)</p>
 </div>
 
 <script>
 "use strict";
 
 /* ============================================================
-   1. MUSIC DATA
-   Standard tuning, low E (string 0) at top to high E (string 5).
-   Chords are fret patterns; -1 means the string is muted.
+   MUSIC DATA  —  standard tuning, low E (string 0) to high E (5)
    ============================================================ */
-const OPEN_FREQ = [82.4069, 110.0, 146.832, 195.998, 246.942, 329.628]; // E2 A2 D3 G3 B3 E4
+const OPEN_FREQ = [82.4069, 110.0, 146.832, 195.998, 246.942, 329.628];
 const STRING_NAMES = ["E", "A", "D", "G", "B", "e"];
+const NUM_FRETS = 5; // playable frets 1..5, plus the open nut
 
-const CHORDS = {
-  "G":  [3, 2, 0, 0, 0, 3],
-  "C":  [-1, 3, 2, 0, 1, 0],
-  "D":  [-1, -1, 0, 2, 3, 2],
-  "Em": [0, 2, 2, 0, 0, 0],
-  "Am": [-1, 0, 2, 2, 1, 0],
-  "E":  [0, 2, 2, 1, 0, 0],
-  "A":  [-1, 0, 2, 2, 2, 0],
-  "Dm": [-1, -1, 0, 2, 3, 1],
-};
-const CHORD_ORDER = ["G", "C", "D", "Em", "Am", "E", "A", "Dm"];
+// Per-string state: { fret: number|null (null = open), muted: bool }
+const fretState = OPEN_FREQ.map(() => ({ fret: null, muted: false }));
 
-// Convert a chord's fret pattern into the 6 sounding frequencies (null = muted).
-function chordFreqs(name) {
-  return CHORDS[name].map((fret, i) =>
-    fret < 0 ? null : OPEN_FREQ[i] * Math.pow(2, fret / 12)
-  );
+function soundingFreq(i) {
+  const st = fretState[i];
+  if (st.muted) return null;
+  const fret = st.fret || 0;
+  return OPEN_FREQ[i] * Math.pow(2, fret / 12);
 }
 
-let currentChord = "G";
-let currentFreqs = chordFreqs(currentChord);
-
 /* ============================================================
-   2. AUDIO ENGINE  —  Karplus-Strong plucked string synthesis
-   A short noise burst is fed into a delay loop. The loop length
-   sets the pitch; gentle averaging each pass softens it so it
-   decays like a real string. More excitation energy = louder.
+   AUDIO ENGINE  —  Karplus-Strong plucked string synthesis
    ============================================================ */
-let ctx = null;
-let master = null;
-let reverbWet = null;
-const bufferCache = new Map(); // freq(rounded) -> AudioBuffer
+let ctx = null, master = null, reverbWet = null;
+const bufferCache = new Map();
 
 function initAudio() {
   if (ctx) return;
   const AC = window.AudioContext || window.webkitAudioContext;
   ctx = new AC();
-
   master = ctx.createGain();
   master.gain.value = 0.9;
 
-  // gentle tone shaping
   const tone = ctx.createBiquadFilter();
   tone.type = "lowpass";
   tone.frequency.value = 5500;
 
-  // subtle room reverb for body
   const convolver = ctx.createConvolver();
   convolver.buffer = makeImpulse(1.6, 2.2);
   reverbWet = ctx.createGain();
@@ -213,201 +235,211 @@ function initAudio() {
   reverbWet.connect(ctx.destination);
 }
 
-// Build a decaying-noise impulse response for the convolver reverb.
 function makeImpulse(seconds, decay) {
   const len = Math.floor(ctx.sampleRate * seconds);
   const buf = ctx.createBuffer(2, len, ctx.sampleRate);
   for (let ch = 0; ch < 2; ch++) {
     const d = buf.getChannelData(ch);
-    for (let i = 0; i < len; i++) {
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
-    }
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
   }
   return buf;
 }
 
-// Generate (and cache) a plucked-string AudioBuffer for a frequency.
 function pluckBuffer(freq) {
-  const key = Math.round(freq * 2); // ~0.5 Hz resolution
+  const key = Math.round(freq * 2);
   if (bufferCache.has(key)) return bufferCache.get(key);
-
   const sr = ctx.sampleRate;
-  const N = Math.max(2, Math.round(sr / freq));   // delay length = one period
-  const duration = 3.2;                           // seconds of tail
+  const N = Math.max(2, Math.round(sr / freq));
+  const duration = 3.2;
   const len = Math.floor(sr * duration);
   const buf = ctx.createBuffer(1, len, sr);
   const y = buf.getChannelData(0);
-
-  // excitation: a short, slightly low-passed noise burst
   let prev = 0;
   for (let i = 0; i < N; i++) {
     const raw = Math.random() * 2 - 1;
     prev = 0.5 * (raw + prev);
     y[i] = prev;
   }
-
-  // higher notes naturally decay faster; nudge damping with pitch
   const damping = 0.998 - Math.min(0.01, freq / 90000);
-
-  for (let i = N; i < len; i++) {
-    y[i] = damping * 0.5 * (y[i - N] + y[i - N + 1]);
-  }
-
+  for (let i = N; i < len; i++) y[i] = damping * 0.5 * (y[i - N] + y[i - N + 1]);
   bufferCache.set(key, buf);
   return buf;
 }
 
-// Play one string at a given loudness (0..1). Returns immediately.
-function playString(stringIndex, velocity, when) {
-  const freq = currentFreqs[stringIndex];
-  if (freq == null) return; // muted string
+function playString(i, velocity, when) {
+  const freq = soundingFreq(i);
+  if (freq == null) { mutedTick(i); return; } // muted string: soft percussive tick
   const t = when != null ? when : ctx.currentTime;
-
   const src = ctx.createBufferSource();
   src.buffer = pluckBuffer(freq);
-  src.detune.value = (Math.random() - 0.5) * 6; // tiny human imperfection
-
+  src.detune.value = (Math.random() - 0.5) * 6;
   const g = ctx.createGain();
-  const vol = Math.max(0.06, Math.min(1, velocity));
-  g.gain.value = vol;
+  g.gain.value = Math.max(0.06, Math.min(1, velocity));
+  src.connect(g); g.connect(master);
+  src.start(t); src.stop(t + 3.2);
+  flashString(i);
+}
 
-  src.connect(g);
-  g.connect(master);
+// short muted "chuck" so muted strings still feel responsive
+function mutedTick(i) {
+  const t = ctx.currentTime;
+  const len = Math.floor(ctx.sampleRate * 0.04);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let k = 0; k < len; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / len);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const g = ctx.createGain(); g.gain.value = 0.12;
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
+  src.connect(lp); lp.connect(g); g.connect(master);
   src.start(t);
-  src.stop(t + 3.2);
-
-  flashString(stringIndex);
+  flashString(i);
 }
 
 /* ============================================================
-   3. INTERACTION  —  strum + fingerpick with velocity
+   FRETBOARD UI
    ============================================================ */
-const stringsEl = document.getElementById("strings");
-const laneEls = [];
-let laneRects = [];
+const fbEl = document.getElementById("fretboard");
+const stringRows = []; // { row, line, cells:[] }
 
-function buildStrings() {
+function buildFretboard() {
+  // fret-number header
+  const head = document.createElement("div");
+  head.id = "fbhead";
+  for (let c = 0; c <= NUM_FRETS; c++) {
+    const h = document.createElement("div");
+    h.className = "fhcell" + (c === 0 ? " nut" : "");
+    h.textContent = c === 0 ? "" : c;
+    head.appendChild(h);
+  }
+  fbEl.appendChild(head);
+
   for (let i = 0; i < 6; i++) {
-    const lane = document.createElement("div");
-    lane.className = "string-lane";
-    lane.dataset.index = i;
+    const row = document.createElement("div");
+    row.className = "fret-row";
 
     const line = document.createElement("div");
     line.className = "string-line";
-    // thicker line for lower (heavier) strings
     line.style.setProperty("--thick", (5 - i * 0.55) + "px");
+    row.appendChild(line);
 
-    const label = document.createElement("div");
-    label.className = "string-label";
-    label.textContent = STRING_NAMES[i];
-
-    lane.appendChild(line);
-    lane.appendChild(label);
-    stringsEl.appendChild(lane);
-    laneEls.push({ lane, line });
+    const cells = [];
+    for (let c = 0; c <= NUM_FRETS; c++) {
+      const cell = document.createElement("div");
+      cell.className = "cell" + (c === 0 ? " nut" : "");
+      // decorative position markers on frets 3 & 5 (middle of neck)
+      if ((c === 3 || c === 5) && (i === 2 || i === 3)) cell.classList.add("inlay");
+      cell.addEventListener("pointerdown", (e) => { e.preventDefault(); onFretTap(i, c); });
+      row.appendChild(cell);
+      cells.push(cell);
+    }
+    fbEl.appendChild(row);
+    stringRows.push({ row, line, cells });
   }
-  const hint = document.createElement("div");
-  hint.className = "hint";
-  hint.textContent = "strum ↑↓  ·  tap to pick";
-  stringsEl.appendChild(hint);
+  renderFretboard();
+}
+
+function onFretTap(i, c) {
+  const st = fretState[i];
+  if (c === 0) {
+    // nut: cycle mute on/off (also clears any fretted note)
+    if (st.muted) { st.muted = false; st.fret = null; }
+    else { st.muted = true; st.fret = null; }
+  } else {
+    if (st.fret === c) st.fret = null;       // tap same fret to lift finger
+    else { st.fret = c; st.muted = false; }  // press a new fret
+  }
+  renderFretboard();
+}
+
+function renderFretboard() {
+  stringRows.forEach(({ row, cells }, i) => {
+    const st = fretState[i];
+    cells.forEach((cell, c) => {
+      if (c > 0) cell.classList.toggle("pressed", st.fret === c);
+    });
+    const nut = cells[0];
+    nut.dataset.mark = st.muted ? "×" : (st.fret == null ? "O" : "");
+    row.classList.toggle("muted", st.muted);
+  });
 }
 
 function flashString(i) {
-  const line = laneEls[i].line;
-  line.classList.remove("pluck");
-  // force reflow so the animation can retrigger
-  void line.offsetWidth;
-  line.classList.add("pluck");
+  const line = stringRows[i].line;
+  line.classList.remove("pluck"); void line.offsetWidth; line.classList.add("pluck");
+  const stub = strumRows[i] && strumRows[i].querySelector(".stub");
+  if (stub) { stub.classList.remove("pluck"); void stub.offsetWidth; stub.classList.add("pluck"); }
 }
 
-function measureLanes() {
-  laneRects = laneEls.map(({ lane }) => lane.getBoundingClientRect());
+/* ============================================================
+   STRUM STRIP  —  strum + fingerpick with velocity
+   ============================================================ */
+const strumEl = document.getElementById("strum");
+const strumRows = [];
+let strumRects = [];
+
+function buildStrum() {
+  for (let i = 0; i < 6; i++) {
+    const r = document.createElement("div");
+    r.className = "strum-row";
+    const stub = document.createElement("div");
+    stub.className = "stub";
+    stub.style.setProperty("--thick", (5 - i * 0.55) + "px");
+    r.appendChild(stub);
+    strumEl.appendChild(r);
+    strumRows.push(r);
+  }
 }
 
-function laneAtY(y) {
-  for (let i = 0; i < laneRects.length; i++) {
-    const r = laneRects[i];
+function measureStrum() { strumRects = strumRows.map((r) => r.getBoundingClientRect()); }
+function strumRowAtY(y) {
+  for (let i = 0; i < strumRects.length; i++) {
+    const r = strumRects[i];
     if (y >= r.top && y <= r.bottom) return i;
   }
   return -1;
 }
+function speedToVelocity(s) { return Math.max(0.18, Math.min(1, 0.18 + s * 0.32)); }
 
-// pointer tracking for velocity (px per ms)
-let pointerActive = false;
-let lastY = 0, lastX = 0, lastT = 0, lastLane = -1;
+let strumming = false, lastX = 0, lastY = 0, lastT = 0, lastRow = -1;
 
-function speedToVelocity(speedPxPerMs) {
-  // ~0 (slow) -> quiet, ~3+ (fast flick) -> full
-  return Math.max(0.18, Math.min(1, 0.18 + speedPxPerMs * 0.32));
-}
-
-stringsEl.addEventListener("pointerdown", (e) => {
+strumEl.addEventListener("pointerdown", (e) => {
   if (!ctx) return;
   e.preventDefault();
-  measureLanes();
-  pointerActive = true;
+  measureStrum();
+  strumming = true;
   lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
-  const i = laneAtY(e.clientY);
-  lastLane = i;
-  if (i >= 0) playString(i, 0.7); // a single tap = a medium pick
-  stringsEl.setPointerCapture(e.pointerId);
+  const i = strumRowAtY(e.clientY);
+  lastRow = i;
+  if (i >= 0) playString(i, 0.72); // single tap = a pick
+  strumEl.setPointerCapture(e.pointerId);
 });
-
-stringsEl.addEventListener("pointermove", (e) => {
-  if (!pointerActive) return;
+strumEl.addEventListener("pointermove", (e) => {
+  if (!strumming) return;
   e.preventDefault();
   const now = performance.now();
-  const i = laneAtY(e.clientY);
-  if (i >= 0 && i !== lastLane) {
+  const i = strumRowAtY(e.clientY);
+  if (i >= 0 && i !== lastRow) {
     const dt = Math.max(1, now - lastT);
     const dist = Math.hypot(e.clientX - lastX, e.clientY - lastY);
-    const vel = speedToVelocity(dist / dt);
-    playString(i, vel);
-    lastLane = i;
+    playString(i, speedToVelocity(dist / dt));
+    lastRow = i;
   }
   lastX = e.clientX; lastY = e.clientY; lastT = now;
 });
-
-function endPointer(e) {
-  pointerActive = false;
-  lastLane = -1;
-}
-stringsEl.addEventListener("pointerup", endPointer);
-stringsEl.addEventListener("pointercancel", endPointer);
+function endStrum() { strumming = false; lastRow = -1; }
+strumEl.addEventListener("pointerup", endStrum);
+strumEl.addEventListener("pointercancel", endStrum);
 
 /* ============================================================
-   4. CHORD BUTTONS
+   CONTROLS
    ============================================================ */
-const chordsEl = document.getElementById("chords");
-const chordBtns = {};
+document.getElementById("resetChip").addEventListener("click", () => {
+  fretState.forEach((st) => { st.fret = null; st.muted = false; });
+  renderFretboard();
+});
 
-function buildChords() {
-  CHORD_ORDER.forEach((name) => {
-    const btn = document.createElement("div");
-    btn.className = "chord" + (name === currentChord ? " active" : "");
-    btn.textContent = name;
-    btn.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      setChord(name);
-    });
-    chordsEl.appendChild(btn);
-    chordBtns[name] = btn;
-  });
-}
-
-function setChord(name) {
-  if (chordBtns[currentChord]) chordBtns[currentChord].classList.remove("active");
-  currentChord = name;
-  currentFreqs = chordFreqs(name);
-  chordBtns[name].classList.add("active");
-}
-
-/* ============================================================
-   5. OPTIONAL TILT  —  hold-like-a-guitar vibrato
-   ============================================================ */
 const tiltChip = document.getElementById("tiltChip");
 let tiltOn = false;
-
 tiltChip.addEventListener("click", async () => {
   if (tiltOn) { disableTilt(); return; }
   try {
@@ -417,49 +449,36 @@ tiltChip.addEventListener("click", async () => {
       if (res !== "granted") { tiltChip.textContent = "Tilt: denied"; return; }
     }
     window.addEventListener("deviceorientation", onTilt);
-    tiltOn = true;
-    tiltChip.classList.add("on");
-    tiltChip.textContent = "Tilt: on";
-  } catch (err) {
-    tiltChip.textContent = "Tilt: n/a";
-  }
+    tiltOn = true; tiltChip.classList.add("on"); tiltChip.textContent = "Tilt: on";
+  } catch (err) { tiltChip.textContent = "Tilt: n/a"; }
 });
-
 function disableTilt() {
   window.removeEventListener("deviceorientation", onTilt);
-  tiltOn = false;
-  tiltChip.classList.remove("on");
-  tiltChip.textContent = "Tilt: off";
+  tiltOn = false; tiltChip.classList.remove("on"); tiltChip.textContent = "Tilt: off";
 }
-
-// Map left/right tilt (gamma) to a gentle master detune-ish vibrato via tone.
-let vibratoOsc = null, vibratoGain = null;
 function onTilt(e) {
   if (!ctx || !master) return;
-  const gamma = e.gamma || 0; // -90..90 left/right
-  // subtle volume shimmer as you rock the "guitar"
-  const target = 0.9 + Math.sin(gamma / 18) * 0.06;
+  const beta = e.beta || 0; // front/back tilt in landscape
+  const target = 0.9 + Math.sin(beta / 20) * 0.06;
   master.gain.setTargetAtTime(target, ctx.currentTime, 0.08);
 }
 
 /* ============================================================
-   6. BOOT
+   BOOT
    ============================================================ */
-buildChords();
-buildStrings();
+buildFretboard();
+buildStrum();
 
-const overlay = document.getElementById("overlay");
 document.getElementById("startBtn").addEventListener("click", () => {
   initAudio();
   if (ctx.state === "suspended") ctx.resume();
-  // a quiet "warm-up" pluck so the first real note is instant
-  playString(3, 0.0001);
-  measureLanes();
-  overlay.classList.add("hidden");
+  playString(3, 0.0001); // silent warm-up so the first real note is instant
+  measureStrum();
+  document.getElementById("start").classList.add("hidden");
 });
 
-window.addEventListener("resize", measureLanes);
-window.addEventListener("orientationchange", () => setTimeout(measureLanes, 250));
+window.addEventListener("resize", () => setTimeout(measureStrum, 50));
+window.addEventListener("orientationchange", () => setTimeout(measureStrum, 250));
 </script>
 </body>
 </html>
