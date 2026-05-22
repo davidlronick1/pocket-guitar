@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Pocket Guitar</title>
+<style>
+  :root {
+    --bg: #1a120b;
+    --wood: #3a2417;
+    --wood-light: #5a3a23;
+    --amber: #e8a14b;
+    --amber-bright: #ffc777;
+    --string: #d9c4a3;
+    --text: #f3e7d3;
+    --muted: #8a7355;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    user-select: none; -webkit-user-select: none;
+    touch-action: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; height: 100dvh; }
+
+  /* ---- top bar ---- */
+  #topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
+    background: linear-gradient(180deg, #2a1a10, #1a120b);
+    border-bottom: 1px solid #000;
+  }
+  #topbar h1 { font-size: 16px; margin: 0; letter-spacing: 0.5px; font-weight: 600; }
+  #topbar h1 span { color: var(--amber); }
+  .chip {
+    font-size: 12px; padding: 6px 10px; border-radius: 14px;
+    background: #2c1c11; border: 1px solid #4a3019; color: var(--muted);
+  }
+  .chip.on { color: #0c0c0c; background: var(--amber); border-color: var(--amber-bright); font-weight: 600; }
+
+  /* ---- main play area ---- */
+  #play { flex: 1; display: flex; min-height: 0; }
+
+  /* chord rail */
+  #chords {
+    width: 38%; max-width: 220px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 10px; align-content: start;
+    background: linear-gradient(180deg, #241710, #1d130c);
+    border-right: 2px solid #000; overflow-y: auto;
+  }
+  .chord {
+    display: flex; align-items: center; justify-content: center;
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    background: linear-gradient(160deg, var(--wood-light), var(--wood));
+    border: 1px solid #6b4527;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.4);
+    font-size: 20px; font-weight: 700; color: var(--text);
+    transition: transform .05s ease, background .12s ease, box-shadow .12s ease;
+  }
+  .chord.active {
+    background: linear-gradient(160deg, var(--amber-bright), var(--amber));
+    color: #2a1a0a; border-color: #ffe0a8;
+    box-shadow: 0 0 16px rgba(232,161,75,.6), inset 0 1px 0 rgba(255,255,255,.3);
+    transform: scale(1.04);
+  }
+
+  /* strings */
+  #strings {
+    flex: 1; position: relative;
+    display: flex; flex-direction: column;
+    padding: 4px 0;
+    background:
+      repeating-linear-gradient(180deg, rgba(0,0,0,.12) 0 2px, transparent 2px 4px),
+      linear-gradient(120deg, #4a2f1c, #321f12 60%, #271810);
+  }
+  .string-lane {
+    flex: 1; position: relative; display: flex; align-items: center;
+  }
+  .string-line {
+    position: absolute; left: 0; right: 0; top: 50%;
+    height: var(--thick, 2px); transform: translateY(-50%);
+    background: linear-gradient(180deg, #fff6e0, var(--string) 40%, #9c8763);
+    border-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.5);
+  }
+  .string-line.pluck { animation: pluck .5s ease-out; }
+  @keyframes pluck {
+    0%   { box-shadow: 0 0 0 rgba(255,210,120,0); filter: none; transform: translateY(-50%) scaleY(1); }
+    12%  { box-shadow: 0 0 14px rgba(255,210,120,.9); filter: brightness(1.8); transform: translateY(-50%) scaleY(3.5); }
+    100% { box-shadow: 0 0 0 rgba(255,210,120,0); filter: none; transform: translateY(-50%) scaleY(1); }
+  }
+  .string-label {
+    position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+    font-size: 10px; color: rgba(255,255,255,.35); pointer-events: none;
+  }
+  .hint {
+    position: absolute; right: 10px; bottom: 8px;
+    font-size: 11px; color: rgba(255,255,255,.3); pointer-events: none;
+  }
+
+  /* ---- start overlay ---- */
+  #overlay {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    background: radial-gradient(circle at 50% 35%, #2c1a10, #120c07);
+  }
+  #overlay h2 { font-size: 28px; margin: 0 0 6px; }
+  #overlay h2 span { color: var(--amber); }
+  #overlay p { color: var(--muted); max-width: 320px; line-height: 1.5; margin: 6px 0 24px; }
+  #startBtn {
+    font-size: 18px; font-weight: 700; color: #2a1a0a;
+    background: linear-gradient(160deg, var(--amber-bright), var(--amber));
+    border: none; border-radius: 30px; padding: 16px 40px;
+    box-shadow: 0 6px 20px rgba(232,161,75,.45);
+  }
+  #startBtn:active { transform: scale(.97); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1>Pocket <span>Guitar</span></h1>
+    <div id="tiltChip" class="chip">Tilt: off</div>
+  </div>
+  <div id="play">
+    <div id="chords"></div>
+    <div id="strings"></div>
+  </div>
+</div>
+
+<div id="overlay">
+  <h2>Pocket <span>Guitar</span></h2>
+  <p>Pick a chord with your left thumb. Strum or fingerpick the strings with your right thumb. Strum faster to play louder.</p>
+  <button id="startBtn">Tap to start playing</button>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   1. MUSIC DATA
+   Standard tuning, low E (string 0) at top to high E (string 5).
+   Chords are fret patterns; -1 means the string is muted.
+   ============================================================ */
+const OPEN_FREQ = [82.4069, 110.0, 146.832, 195.998, 246.942, 329.628]; // E2 A2 D3 G3 B3 E4
+const STRING_NAMES = ["E", "A", "D", "G", "B", "e"];
+
+const CHORDS = {
+  "G":  [3, 2, 0, 0, 0, 3],
+  "C":  [-1, 3, 2, 0, 1, 0],
+  "D":  [-1, -1, 0, 2, 3, 2],
+  "Em": [0, 2, 2, 0, 0, 0],
+  "Am": [-1, 0, 2, 2, 1, 0],
+  "E":  [0, 2, 2, 1, 0, 0],
+  "A":  [-1, 0, 2, 2, 2, 0],
+  "Dm": [-1, -1, 0, 2, 3, 1],
+};
+const CHORD_ORDER = ["G", "C", "D", "Em", "Am", "E", "A", "Dm"];
+
+// Convert a chord's fret pattern into the 6 sounding frequencies (null = muted).
+function chordFreqs(name) {
+  return CHORDS[name].map((fret, i) =>
+    fret < 0 ? null : OPEN_FREQ[i] * Math.pow(2, fret / 12)
+  );
+}
+
+let currentChord = "G";
+let currentFreqs = chordFreqs(currentChord);
+
+/* ============================================================
+   2. AUDIO ENGINE  —  Karplus-Strong plucked string synthesis
+   A short noise burst is fed into a delay loop. The loop length
+   sets the pitch; gentle averaging each pass softens it so it
+   decays like a real string. More excitation energy = louder.
+   ============================================================ */
+let ctx = null;
+let master = null;
+let reverbWet = null;
+const bufferCache = new Map(); // freq(rounded) -> AudioBuffer
+
+function initAudio() {
+  if (ctx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  ctx = new AC();
+
+  master = ctx.createGain();
+  master.gain.value = 0.9;
+
+  // gentle tone shaping
+  const tone = ctx.createBiquadFilter();
+  tone.type = "lowpass";
+  tone.frequency.value = 5500;
+
+  // subtle room reverb for body
+  const convolver = ctx.createConvolver();
+  convolver.buffer = makeImpulse(1.6, 2.2);
+  reverbWet = ctx.createGain();
+  reverbWet.gain.value = 0.18;
+
+  master.connect(tone);
+  tone.connect(ctx.destination);
+  tone.connect(convolver);
+  convolver.connect(reverbWet);
+  reverbWet.connect(ctx.destination);
+}
+
+// Build a decaying-noise impulse response for the convolver reverb.
+function makeImpulse(seconds, decay) {
+  const len = Math.floor(ctx.sampleRate * seconds);
+  const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  return buf;
+}
+
+// Generate (and cache) a plucked-string AudioBuffer for a frequency.
+function pluckBuffer(freq) {
+  const key = Math.round(freq * 2); // ~0.5 Hz resolution
+  if (bufferCache.has(key)) return bufferCache.get(key);
+
+  const sr = ctx.sampleRate;
+  const N = Math.max(2, Math.round(sr / freq));   // delay length = one period
+  const duration = 3.2;                           // seconds of tail
+  const len = Math.floor(sr * duration);
+  const buf = ctx.createBuffer(1, len, sr);
+  const y = buf.getChannelData(0);
+
+  // excitation: a short, slightly low-passed noise burst
+  let prev = 0;
+  for (let i = 0; i < N; i++) {
+    const raw = Math.random() * 2 - 1;
+    prev = 0.5 * (raw + prev);
+    y[i] = prev;
+  }
+
+  // higher notes naturally decay faster; nudge damping with pitch
+  const damping = 0.998 - Math.min(0.01, freq / 90000);
+
+  for (let i = N; i < len; i++) {
+    y[i] = damping * 0.5 * (y[i - N] + y[i - N + 1]);
+  }
+
+  bufferCache.set(key, buf);
+  return buf;
+}
+
+// Play one string at a given loudness (0..1). Returns immediately.
+function playString(stringIndex, velocity, when) {
+  const freq = currentFreqs[stringIndex];
+  if (freq == null) return; // muted string
+  const t = when != null ? when : ctx.currentTime;
+
+  const src = ctx.createBufferSource();
+  src.buffer = pluckBuffer(freq);
+  src.detune.value = (Math.random() - 0.5) * 6; // tiny human imperfection
+
+  const g = ctx.createGain();
+  const vol = Math.max(0.06, Math.min(1, velocity));
+  g.gain.value = vol;
+
+  src.connect(g);
+  g.connect(master);
+  src.start(t);
+  src.stop(t + 3.2);
+
+  flashString(stringIndex);
+}
+
+/* ============================================================
+   3. INTERACTION  —  strum + fingerpick with velocity
+   ============================================================ */
+const stringsEl = document.getElementById("strings");
+const laneEls = [];
+let laneRects = [];
+
+function buildStrings() {
+  for (let i = 0; i < 6; i++) {
+    const lane = document.createElement("div");
+    lane.className = "string-lane";
+    lane.dataset.index = i;
+
+    const line = document.createElement("div");
+    line.className = "string-line";
+    // thicker line for lower (heavier) strings
+    line.style.setProperty("--thick", (5 - i * 0.55) + "px");
+
+    const label = document.createElement("div");
+    label.className = "string-label";
+    label.textContent = STRING_NAMES[i];
+
+    lane.appendChild(line);
+    lane.appendChild(label);
+    stringsEl.appendChild(lane);
+    laneEls.push({ lane, line });
+  }
+  const hint = document.createElement("div");
+  hint.className = "hint";
+  hint.textContent = "strum ↑↓  ·  tap to pick";
+  stringsEl.appendChild(hint);
+}
+
+function flashString(i) {
+  const line = laneEls[i].line;
+  line.classList.remove("pluck");
+  // force reflow so the animation can retrigger
+  void line.offsetWidth;
+  line.classList.add("pluck");
+}
+
+function measureLanes() {
+  laneRects = laneEls.map(({ lane }) => lane.getBoundingClientRect());
+}
+
+function laneAtY(y) {
+  for (let i = 0; i < laneRects.length; i++) {
+    const r = laneRects[i];
+    if (y >= r.top && y <= r.bottom) return i;
+  }
+  return -1;
+}
+
+// pointer tracking for velocity (px per ms)
+let pointerActive = false;
+let lastY = 0, lastX = 0, lastT = 0, lastLane = -1;
+
+function speedToVelocity(speedPxPerMs) {
+  // ~0 (slow) -> quiet, ~3+ (fast flick) -> full
+  return Math.max(0.18, Math.min(1, 0.18 + speedPxPerMs * 0.32));
+}
+
+stringsEl.addEventListener("pointerdown", (e) => {
+  if (!ctx) return;
+  e.preventDefault();
+  measureLanes();
+  pointerActive = true;
+  lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
+  const i = laneAtY(e.clientY);
+  lastLane = i;
+  if (i >= 0) playString(i, 0.7); // a single tap = a medium pick
+  stringsEl.setPointerCapture(e.pointerId);
+});
+
+stringsEl.addEventListener("pointermove", (e) => {
+  if (!pointerActive) return;
+  e.preventDefault();
+  const now = performance.now();
+  const i = laneAtY(e.clientY);
+  if (i >= 0 && i !== lastLane) {
+    const dt = Math.max(1, now - lastT);
+    const dist = Math.hypot(e.clientX - lastX, e.clientY - lastY);
+    const vel = speedToVelocity(dist / dt);
+    playString(i, vel);
+    lastLane = i;
+  }
+  lastX = e.clientX; lastY = e.clientY; lastT = now;
+});
+
+function endPointer(e) {
+  pointerActive = false;
+  lastLane = -1;
+}
+stringsEl.addEventListener("pointerup", endPointer);
+stringsEl.addEventListener("pointercancel", endPointer);
+
+/* ============================================================
+   4. CHORD BUTTONS
+   ============================================================ */
+const chordsEl = document.getElementById("chords");
+const chordBtns = {};
+
+function buildChords() {
+  CHORD_ORDER.forEach((name) => {
+    const btn = document.createElement("div");
+    btn.className = "chord" + (name === currentChord ? " active" : "");
+    btn.textContent = name;
+    btn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      setChord(name);
+    });
+    chordsEl.appendChild(btn);
+    chordBtns[name] = btn;
+  });
+}
+
+function setChord(name) {
+  if (chordBtns[currentChord]) chordBtns[currentChord].classList.remove("active");
+  currentChord = name;
+  currentFreqs = chordFreqs(name);
+  chordBtns[name].classList.add("active");
+}
+
+/* ============================================================
+   5. OPTIONAL TILT  —  hold-like-a-guitar vibrato
+   ============================================================ */
+const tiltChip = document.getElementById("tiltChip");
+let tiltOn = false;
+
+tiltChip.addEventListener("click", async () => {
+  if (tiltOn) { disableTilt(); return; }
+  try {
+    const DOE = window.DeviceOrientationEvent;
+    if (DOE && typeof DOE.requestPermission === "function") {
+      const res = await DOE.requestPermission();
+      if (res !== "granted") { tiltChip.textContent = "Tilt: denied"; return; }
+    }
+    window.addEventListener("deviceorientation", onTilt);
+    tiltOn = true;
+    tiltChip.classList.add("on");
+    tiltChip.textContent = "Tilt: on";
+  } catch (err) {
+    tiltChip.textContent = "Tilt: n/a";
+  }
+});
+
+function disableTilt() {
+  window.removeEventListener("deviceorientation", onTilt);
+  tiltOn = false;
+  tiltChip.classList.remove("on");
+  tiltChip.textContent = "Tilt: off";
+}
+
+// Map left/right tilt (gamma) to a gentle master detune-ish vibrato via tone.
+let vibratoOsc = null, vibratoGain = null;
+function onTilt(e) {
+  if (!ctx || !master) return;
+  const gamma = e.gamma || 0; // -90..90 left/right
+  // subtle volume shimmer as you rock the "guitar"
+  const target = 0.9 + Math.sin(gamma / 18) * 0.06;
+  master.gain.setTargetAtTime(target, ctx.currentTime, 0.08);
+}
+
+/* ============================================================
+   6. BOOT
+   ============================================================ */
+buildChords();
+buildStrings();
+
+const overlay = document.getElementById("overlay");
+document.getElementById("startBtn").addEventListener("click", () => {
+  initAudio();
+  if (ctx.state === "suspended") ctx.resume();
+  // a quiet "warm-up" pluck so the first real note is instant
+  playString(3, 0.0001);
+  measureLanes();
+  overlay.classList.add("hidden");
+});
+
+window.addEventListener("resize", measureLanes);
+window.addEventListener("orientationchange", () => setTimeout(measureLanes, 250));
+</script>
+</body>
+</html>
