@@ -191,7 +191,8 @@ function fingersOnString(i) { for (const v of fingers.values()) if (v.i === i) r
 let ctx = null, master = null, reverbWet = null;
 const bufferCache = new Map();
 const voices = new Array(6).fill(null); // current ringing voice per string
-const PICK_VOL = 0.6, HAMMER_VOL = 0.5, SLIDE_VOL = 0.42; // all uniform-ish, no strum dynamics
+const PICK_VOL = 0.6;                          // every pick/strum hits at the same volume
+const HAMMER_GLIDE = 0.04, SLIDE_GLIDE = 0.12; // seconds to bend pitch (hammer = quick, slide = smooth)
 
 function initAudio() {
   if (ctx) return;
@@ -251,20 +252,33 @@ function stopVoice(i, fade) {
 function startVoice(i, vol) {
   if (!ctx) return;
   stopVoice(i, 0.012);
+  const base = soundingFreq(i);
   const src = ctx.createBufferSource();
-  src.buffer = pluckBuffer(soundingFreq(i));
+  src.buffer = pluckBuffer(base);
   src.detune.value = (Math.random() - 0.5) * 6;
   const g = ctx.createGain();
   g.gain.value = vol;
   src.connect(g); g.connect(master);
   src.start();
   src.stop(ctx.currentTime + 3.2);
-  const v = { src, g };
+  const v = { src, g, baseFreq: base };
   voices[i] = v;
   src.onended = () => { if (voices[i] === v) voices[i] = null; };
   flashString(i);
 }
-function playString(i) { startVoice(i, PICK_VOL); } // a strum/pick hit
+// Smoothly bend a ringing string to its current pitch (hammer-on / slide / pull-off)
+// by ramping the playing buffer's rate — no re-pluck, so the pitch glides instead of switching.
+function glideVoice(i, glideTime) {
+  const v = voices[i];
+  if (!v) return;
+  const target = soundingFreq(i) / v.baseFreq;
+  const now = ctx.currentTime;
+  const p = v.src.playbackRate;
+  p.cancelScheduledValues(now);
+  p.setValueAtTime(p.value, now);
+  p.linearRampToValueAtTime(Math.max(0.05, target), now + glideTime);
+}
+function playString(i) { startVoice(i, PICK_VOL); } // a strum/pick hit (a fresh attack)
 
 /* ============================================================
    FRETBOARD UI + INTERACTION
@@ -334,8 +348,8 @@ fbEl.addEventListener("pointerdown", (e) => {
   fingers.set(e.pointerId, { i: hit.i, c: hit.c });
   const after = soundingFret(hit.i);
   renderPressed();
-  // Hammer-on: pressing a higher fret onto a string that's already ringing.
-  if (ctx && voices[hit.i] && after > before) startVoice(hit.i, HAMMER_VOL);
+  // Hammer-on: pressing a higher fret onto a ringing string -> quick smooth bend up.
+  if (ctx && voices[hit.i] && after > before) { glideVoice(hit.i, HAMMER_GLIDE); flashString(hit.i); }
 });
 
 fbEl.addEventListener("pointermove", (e) => {
@@ -351,17 +365,21 @@ fbEl.addEventListener("pointermove", (e) => {
   fingers.set(e.pointerId, { i: cur.i, c: newC });
   const after = soundingFret(cur.i);
   renderPressed();
-  // Slide: pitch follows the finger (up or down) while the string rings.
-  if (ctx && voices[cur.i] && after !== before) startVoice(cur.i, SLIDE_VOL);
+  // Slide: pitch glides with the finger (up or down) while the string rings.
+  if (ctx && voices[cur.i] && after !== before) glideVoice(cur.i, SLIDE_GLIDE);
 });
 
 function releaseFinger(pointerId) {
   const cur = fingers.get(pointerId);
   if (!cur) return;
+  const before = soundingFret(cur.i);
   fingers.delete(pointerId);
   renderPressed();
   // Let go to stop: if no fingers remain on that string, damp its note.
-  if (!fingersOnString(cur.i)) stopVoice(cur.i, 0.04);
+  if (!fingersOnString(cur.i)) { stopVoice(cur.i, 0.04); return; }
+  // A lower finger still holds the string -> glide down to it (pull-off).
+  const after = soundingFret(cur.i);
+  if (ctx && voices[cur.i] && after !== before) glideVoice(cur.i, SLIDE_GLIDE);
 }
 // Robust release — these fire even if pointer capture was lost (fixes stuck notes).
 window.addEventListener("pointerup", (e) => releaseFinger(e.pointerId));
