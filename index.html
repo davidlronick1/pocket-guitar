@@ -20,7 +20,22 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     user-select: none; -webkit-user-select: none; touch-action: none;
   }
-  #app { display: flex; flex-direction: column; height: 100%; height: 100dvh; }
+  #app { display: flex; flex-direction: column; height: 100%; height: 100dvh; width: 100%; }
+
+  /* ----------------------------------------------------------
+     ORIENTATION PIN: if the viewport is portrait (e.g. iPhone
+     rotation-lock is on), rotate the whole app 90deg so the
+     guitar always renders along the phone's long edge. Hold the
+     phone sideways and it reads correctly, lock on or off.
+     ---------------------------------------------------------- */
+  @media (orientation: portrait) {
+    #app {
+      position: fixed; top: 0; left: 0;
+      width: 100vh; height: 100vw;
+      transform-origin: top left;
+      transform: translateX(100vw) rotate(90deg);
+    }
+  }
 
   /* ---- slim top bar ---- */
   #topbar {
@@ -115,16 +130,16 @@
     pointer-events: none; white-space: nowrap;
   }
 
-  /* ---- overlays ---- */
-  .overlay {
+  /* ---- start overlay (kept upright; not part of the rotated app) ---- */
+  #start {
     position: fixed; inset: 0; z-index: 50;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; padding: 24px;
     background: radial-gradient(circle at 50% 40%, #2c1a10, #120c07);
   }
-  .overlay h2 { font-size: 26px; margin: 0 0 6px; }
-  .overlay h2 span { color: var(--amber); }
-  .overlay p { color: var(--muted); max-width: 380px; line-height: 1.5; margin: 6px 0 22px; }
+  #start h2 { font-size: 26px; margin: 0 0 6px; }
+  #start h2 span { color: var(--amber); }
+  #start p { color: var(--muted); max-width: 380px; line-height: 1.5; margin: 6px 0 22px; }
   #startBtn {
     font-size: 17px; font-weight: 700; color: #2a1a0a;
     background: linear-gradient(160deg, var(--amber-bright), var(--amber));
@@ -132,15 +147,7 @@
     box-shadow: 0 6px 20px rgba(232,161,75,.45);
   }
   #startBtn:active { transform: scale(.97); }
-  .rotate-icon { font-size: 40px; margin-bottom: 10px; animation: rock 1.8s ease-in-out infinite; }
-  @keyframes rock { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(78deg); } }
   .hidden { display: none !important; }
-
-  #rotate { display: none; }
-  @media (orientation: portrait) {
-    #rotate { display: flex; }
-    #play, #topbar { filter: blur(2px); }
-  }
 </style>
 </head>
 <body>
@@ -157,16 +164,10 @@
   </div>
 </div>
 
-<div id="start" class="overlay">
+<div id="start">
   <h2>Pocket <span>Guitar</span></h2>
   <p>Hold your phone sideways. Hold down frets with your left fingers (a few at once) to shape a chord, then strum or pick the strings on the right. Let go and the string rings open. Strum faster to play louder.</p>
   <button id="startBtn">Tap to start playing</button>
-</div>
-
-<div id="rotate" class="overlay">
-  <div class="rotate-icon">&#128241;</div>
-  <h2>Turn sideways</h2>
-  <p>Pocket Guitar plays in landscape, like holding a real neck. Rotate your phone to play. (Tip: turn off rotation lock in Control Center.)</p>
 </div>
 
 <script>
@@ -174,19 +175,18 @@
 
 /* ============================================================
    MUSIC DATA  —  standard tuning, string index 0 = low E ... 5 = high e
-   DISPLAY_ORDER lays them top-to-bottom on screen: high e on top, low E on bottom.
+   DISPLAY_ORDER lays them top-to-bottom: high e on top, low E on bottom.
    ============================================================ */
 const OPEN_FREQ = [82.4069, 110.0, 146.832, 195.998, 246.942, 329.628];
 const NUM_FRETS = 5;
-const DISPLAY_ORDER = [5, 4, 3, 2, 1, 0]; // top -> bottom
+const DISPLAY_ORDER = [5, 4, 3, 2, 1, 0];
 
-/* Momentary fretting: a pointer (finger) holds a fret only while down. */
+/* Momentary fretting: a finger holds a fret only while down. */
 const pressed = new Map(); // pointerId -> { i, c }
-
 function currentFret(i) {
   let max = null;
   for (const v of pressed.values()) if (v.i === i && (max === null || v.c > max)) max = v.c;
-  return max; // null = open
+  return max;
 }
 function soundingFreq(i) {
   const fret = currentFret(i) || 0;
@@ -198,7 +198,6 @@ function soundingFreq(i) {
    ============================================================ */
 let ctx = null, master = null, reverbWet = null;
 const bufferCache = new Map();
-
 function initAudio() {
   if (ctx) return;
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -249,10 +248,11 @@ function playString(i, velocity, when) {
 
 /* ============================================================
    FRETBOARD UI  (built top-to-bottom in DISPLAY_ORDER)
+   Frets use per-element pointer events, so the CSS rotation
+   doesn't affect hit-testing — the browser handles it.
    ============================================================ */
 const fbEl = document.getElementById("fretboard");
-const stringRows = new Array(6); // indexed by string index -> { line, cells }
-
+const stringRows = new Array(6);
 function buildFretboard() {
   const head = document.createElement("div");
   head.id = "fbhead";
@@ -268,7 +268,6 @@ function buildFretboard() {
     const i = DISPLAY_ORDER[d];
     const row = document.createElement("div");
     row.className = "fret-row";
-
     const line = document.createElement("div");
     line.className = "string-line";
     line.style.setProperty("--thick", (5 - i * 0.55) + "px");
@@ -298,7 +297,6 @@ function buildFretboard() {
     stringRows[i] = { line, cells };
   }
 }
-
 function renderPressed() {
   const set = new Set([...pressed.values()].map((v) => v.i + ":" + v.c));
   for (let i = 0; i < 6; i++) {
@@ -306,7 +304,6 @@ function renderPressed() {
     for (let c = 1; c <= NUM_FRETS; c++) cells[c].classList.toggle("pressed", set.has(i + ":" + c));
   }
 }
-
 function flashString(i) {
   const line = stringRows[i].line;
   line.classList.remove("pluck"); void line.offsetWidth; line.classList.add("pluck");
@@ -315,17 +312,17 @@ function flashString(i) {
 }
 
 /* ============================================================
-   STRUM STRIP  —  strum + fingerpick with velocity
+   STRUM STRIP  —  uses elementFromPoint so it stays correct
+   even when the app is CSS-rotated for portrait phones.
    ============================================================ */
 const strumEl = document.getElementById("strum");
 const strumRows = new Array(6);
-let strumRects = new Array(6);
-
 function buildStrum() {
   for (let d = 0; d < 6; d++) {
     const i = DISPLAY_ORDER[d];
     const r = document.createElement("div");
     r.className = "strum-row";
+    r.dataset.si = i;
     const stub = document.createElement("div");
     stub.className = "stub";
     stub.style.setProperty("--thick", (5 - i * 0.55) + "px");
@@ -334,10 +331,11 @@ function buildStrum() {
     strumRows[i] = r;
   }
 }
-function measureStrum() { for (let i = 0; i < 6; i++) strumRects[i] = strumRows[i].getBoundingClientRect(); }
-function strumRowAtY(y) {
-  for (let i = 0; i < 6; i++) { const r = strumRects[i]; if (r && y >= r.top && y <= r.bottom) return i; }
-  return -1;
+function strumStringFromPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return -1;
+  const row = el.closest && el.closest(".strum-row");
+  return row ? parseInt(row.dataset.si, 10) : -1;
 }
 function speedToVelocity(s) { return Math.max(0.18, Math.min(1, 0.18 + s * 0.32)); }
 
@@ -345,10 +343,9 @@ let strumming = false, lastX = 0, lastY = 0, lastT = 0, lastRow = -1;
 strumEl.addEventListener("pointerdown", (e) => {
   if (!ctx) return;
   e.preventDefault();
-  measureStrum();
   strumming = true;
   lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
-  const i = strumRowAtY(e.clientY); lastRow = i;
+  const i = strumStringFromPoint(e.clientX, e.clientY); lastRow = i;
   if (i >= 0) playString(i, 0.72);
   strumEl.setPointerCapture(e.pointerId);
 });
@@ -356,7 +353,7 @@ strumEl.addEventListener("pointermove", (e) => {
   if (!strumming) return;
   e.preventDefault();
   const now = performance.now();
-  const i = strumRowAtY(e.clientY);
+  const i = strumStringFromPoint(e.clientX, e.clientY);
   if (i >= 0 && i !== lastRow) {
     const dt = Math.max(1, now - lastT);
     const dist = Math.hypot(e.clientX - lastX, e.clientY - lastY);
@@ -405,11 +402,8 @@ document.getElementById("startBtn").addEventListener("click", () => {
   initAudio();
   if (ctx.state === "suspended") ctx.resume();
   playString(3, 0.0001);
-  measureStrum();
   document.getElementById("start").classList.add("hidden");
 });
-window.addEventListener("resize", () => setTimeout(measureStrum, 50));
-window.addEventListener("orientationchange", () => setTimeout(measureStrum, 250));
 </script>
 </body>
 </html>
