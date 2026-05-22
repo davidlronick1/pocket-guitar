@@ -22,12 +22,8 @@
   }
   #app { display: flex; flex-direction: column; height: 100%; height: 100dvh; width: 100%; }
 
-  /* ----------------------------------------------------------
-     ORIENTATION PIN: if the viewport is portrait (e.g. iPhone
-     rotation-lock is on), rotate the whole app 90deg so the
-     guitar always renders along the phone's long edge. Hold the
-     phone sideways and it reads correctly, lock on or off.
-     ---------------------------------------------------------- */
+  /* ORIENTATION PIN: portrait viewport (e.g. rotation lock on) -> rotate the
+     whole app 90deg so the guitar always renders along the phone's long edge. */
   @media (orientation: portrait) {
     #app {
       position: fixed; top: 0; left: 0;
@@ -37,7 +33,6 @@
     }
   }
 
-  /* ---- slim top bar ---- */
   #topbar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 4px 12px; padding-top: max(4px, env(safe-area-inset-top));
@@ -53,7 +48,6 @@
   }
   .chip.on { color: #0c0c0c; background: var(--amber); border-color: var(--amber-bright); font-weight: 600; }
 
-  /* ---- play area: fretboard + strum ---- */
   #play { flex: 1; display: flex; min-height: 0; }
   #fretboard {
     flex: 1; display: flex; flex-direction: column; min-width: 0;
@@ -104,7 +98,6 @@
     transform: translate(-50%, -50%); font-size: 12px; font-weight: 700; color: rgba(255,255,255,.4);
   }
 
-  /* ---- strum strip ---- */
   #strum {
     flex: 0 0 116px; display: flex; flex-direction: column;
     border-left: 3px solid #1c120a;
@@ -130,7 +123,6 @@
     pointer-events: none; white-space: nowrap;
   }
 
-  /* ---- start overlay (kept upright; not part of the rotated app) ---- */
   #start {
     position: fixed; inset: 0; z-index: 50;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -139,7 +131,7 @@
   }
   #start h2 { font-size: 26px; margin: 0 0 6px; }
   #start h2 span { color: var(--amber); }
-  #start p { color: var(--muted); max-width: 380px; line-height: 1.5; margin: 6px 0 22px; }
+  #start p { color: var(--muted); max-width: 400px; line-height: 1.5; margin: 6px 0 22px; }
   #startBtn {
     font-size: 17px; font-weight: 700; color: #2a1a0a;
     background: linear-gradient(160deg, var(--amber-bright), var(--amber));
@@ -166,7 +158,7 @@
 
 <div id="start">
   <h2>Pocket <span>Guitar</span></h2>
-  <p>Hold your phone sideways. Hold down frets with your left fingers (a few at once) to shape a chord, then strum or pick the strings on the right. Let go and the string rings open.</p>
+  <p>Hold your phone sideways. Press frets with your left fingers to shape a chord, then strum or pick on the right. While a string rings you can hammer onto a higher fret or slide your finger along it. Let go and the note stops.</p>
   <button id="startBtn">Tap to start playing</button>
 </div>
 
@@ -174,31 +166,33 @@
 "use strict";
 
 /* ============================================================
-   MUSIC DATA  —  standard tuning, string index 0 = low E ... 5 = high e
-   DISPLAY_ORDER lays them top-to-bottom: high e on top, low E on bottom.
+   MUSIC DATA — standard tuning, string 0 = low E ... 5 = high e.
+   DISPLAY_ORDER lays them top->bottom: high e on top, low E on bottom.
    ============================================================ */
 const OPEN_FREQ = [82.4069, 110.0, 146.832, 195.998, 246.942, 329.628];
 const NUM_FRETS = 5;
 const DISPLAY_ORDER = [5, 4, 3, 2, 1, 0];
 
-/* Momentary fretting: a finger holds a fret only while down. */
-const pressed = new Map(); // pointerId -> { i, c }
-function currentFret(i) {
+/* Fretting fingers: pointerId -> { i (string), c (fret, 0 = open/none) } */
+const fingers = new Map();
+function currentFret(i) {            // highest held fret (>0) on string i, or null
   let max = null;
-  for (const v of pressed.values()) if (v.i === i && (max === null || v.c > max)) max = v.c;
+  for (const v of fingers.values()) if (v.i === i && v.c > 0 && (max === null || v.c > max)) max = v.c;
   return max;
 }
-function soundingFreq(i) {
-  const fret = currentFret(i) || 0;
-  return OPEN_FREQ[i] * Math.pow(2, fret / 12);
-}
+function soundingFret(i) { const f = currentFret(i); return f === null ? 0 : f; }
+function soundingFreq(i) { return OPEN_FREQ[i] * Math.pow(2, soundingFret(i) / 12); }
+function fingersOnString(i) { for (const v of fingers.values()) if (v.i === i) return true; return false; }
 
 /* ============================================================
-   AUDIO ENGINE  —  Karplus-Strong plucked string synthesis
+   AUDIO ENGINE — Karplus-Strong, with one managed voice per string
+   so notes can be retriggered (hammer/slide) and stopped (let go).
    ============================================================ */
 let ctx = null, master = null, reverbWet = null;
 const bufferCache = new Map();
-const NOTE_VOLUME = 0.6; // every note plays at the same fixed volume
+const voices = new Array(6).fill(null); // current ringing voice per string
+const PICK_VOL = 0.6, HAMMER_VOL = 0.5, SLIDE_VOL = 0.42; // all uniform-ish, no strum dynamics
+
 function initAudio() {
   if (ctx) return;
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -238,26 +232,47 @@ function pluckBuffer(freq) {
   bufferCache.set(key, buf);
   return buf;
 }
-function playString(i, when) {
+
+// Stop a string's ringing voice with a fast fade so there's no click.
+function stopVoice(i, fade) {
+  const v = voices[i];
+  if (!v) return;
+  voices[i] = null;
+  const f = fade == null ? 0.03 : fade;
+  try {
+    const now = ctx.currentTime;
+    v.g.gain.cancelScheduledValues(now);
+    v.g.gain.setValueAtTime(v.g.gain.value, now);
+    v.g.gain.linearRampToValueAtTime(0, now + f);
+    v.src.stop(now + f + 0.02);
+  } catch (e) {}
+}
+// Start (or retrigger) a string's voice at its current sounding pitch.
+function startVoice(i, vol) {
   if (!ctx) return;
-  const t = when != null ? when : ctx.currentTime;
+  stopVoice(i, 0.012);
   const src = ctx.createBufferSource();
   src.buffer = pluckBuffer(soundingFreq(i));
   src.detune.value = (Math.random() - 0.5) * 6;
   const g = ctx.createGain();
-  g.gain.value = NOTE_VOLUME;
+  g.gain.value = vol;
   src.connect(g); g.connect(master);
-  src.start(t); src.stop(t + 3.2);
+  src.start();
+  src.stop(ctx.currentTime + 3.2);
+  const v = { src, g };
+  voices[i] = v;
+  src.onended = () => { if (voices[i] === v) voices[i] = null; };
   flashString(i);
 }
+function playString(i) { startVoice(i, PICK_VOL); } // a strum/pick hit
 
 /* ============================================================
-   FRETBOARD UI  (built top-to-bottom in DISPLAY_ORDER)
-   Frets use per-element pointer events, so the CSS rotation
-   doesn't affect hit-testing — the browser handles it.
+   FRETBOARD UI + INTERACTION
+   Container-level pointer capture so slides and releases are reliable.
    ============================================================ */
 const fbEl = document.getElementById("fretboard");
 const stringRows = new Array(6);
+
 function buildFretboard() {
   const head = document.createElement("div");
   head.id = "fbhead";
@@ -282,19 +297,9 @@ function buildFretboard() {
     for (let c = 0; c <= NUM_FRETS; c++) {
       const cell = document.createElement("div");
       cell.className = "cell" + (c === 0 ? " nut" : "");
+      cell.dataset.si = i;
+      cell.dataset.fret = c;            // nut = 0
       if ((c === 3 || c === 5) && (i === 2 || i === 3)) cell.classList.add("inlay");
-      if (c > 0) {
-        cell.addEventListener("pointerdown", (e) => {
-          e.preventDefault();
-          cell.setPointerCapture(e.pointerId);
-          pressed.set(e.pointerId, { i, c });
-          renderPressed();
-        });
-        const up = (e) => { if (pressed.delete(e.pointerId)) renderPressed(); };
-        cell.addEventListener("pointerup", up);
-        cell.addEventListener("pointercancel", up);
-        cell.addEventListener("lostpointercapture", up);
-      }
       row.appendChild(cell);
       cells.push(cell);
     }
@@ -302,23 +307,68 @@ function buildFretboard() {
     stringRows[i] = { line, cells };
   }
 }
+
+// Which { string, fret } is under a screen point (handles the CSS rotation).
+function cellAtPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const cell = el && el.closest && el.closest(".cell");
+  if (!cell || cell.dataset.fret === undefined) return null;
+  return { i: +cell.dataset.si, c: +cell.dataset.fret };
+}
+
 function renderPressed() {
-  const set = new Set([...pressed.values()].map((v) => v.i + ":" + v.c));
+  const set = new Set();
+  for (const v of fingers.values()) if (v.c > 0) set.add(v.i + ":" + v.c);
   for (let i = 0; i < 6; i++) {
     const cells = stringRows[i].cells;
     for (let c = 1; c <= NUM_FRETS; c++) cells[c].classList.toggle("pressed", set.has(i + ":" + c));
   }
 }
-function flashString(i) {
-  const line = stringRows[i].line;
-  line.classList.remove("pluck"); void line.offsetWidth; line.classList.add("pluck");
-  const stub = strumRows[i] && strumRows[i].querySelector(".stub");
-  if (stub) { stub.classList.remove("pluck"); void stub.offsetWidth; stub.classList.add("pluck"); }
+
+fbEl.addEventListener("pointerdown", (e) => {
+  const hit = cellAtPoint(e.clientX, e.clientY);
+  if (!hit) return;
+  e.preventDefault();
+  try { fbEl.setPointerCapture(e.pointerId); } catch (err) {}
+  const before = soundingFret(hit.i);
+  fingers.set(e.pointerId, { i: hit.i, c: hit.c });
+  const after = soundingFret(hit.i);
+  renderPressed();
+  // Hammer-on: pressing a higher fret onto a string that's already ringing.
+  if (ctx && voices[hit.i] && after > before) startVoice(hit.i, HAMMER_VOL);
+});
+
+fbEl.addEventListener("pointermove", (e) => {
+  const cur = fingers.get(e.pointerId);
+  if (!cur) return;
+  e.preventDefault();
+  const hit = cellAtPoint(e.clientX, e.clientY);
+  if (!hit) return;
+  // A slide stays on the finger's own string; only the fret (column) changes.
+  const newC = hit.c;
+  if (newC === cur.c) return;
+  const before = soundingFret(cur.i);
+  fingers.set(e.pointerId, { i: cur.i, c: newC });
+  const after = soundingFret(cur.i);
+  renderPressed();
+  // Slide: pitch follows the finger (up or down) while the string rings.
+  if (ctx && voices[cur.i] && after !== before) startVoice(cur.i, SLIDE_VOL);
+});
+
+function releaseFinger(pointerId) {
+  const cur = fingers.get(pointerId);
+  if (!cur) return;
+  fingers.delete(pointerId);
+  renderPressed();
+  // Let go to stop: if no fingers remain on that string, damp its note.
+  if (!fingersOnString(cur.i)) stopVoice(cur.i, 0.04);
 }
+// Robust release — these fire even if pointer capture was lost (fixes stuck notes).
+window.addEventListener("pointerup", (e) => releaseFinger(e.pointerId));
+window.addEventListener("pointercancel", (e) => releaseFinger(e.pointerId));
 
 /* ============================================================
-   STRUM STRIP  —  uses elementFromPoint so it stays correct
-   even when the app is CSS-rotated for portrait phones.
+   STRUM STRIP — uses elementFromPoint so it survives the rotation.
    ============================================================ */
 const strumEl = document.getElementById("strum");
 const strumRows = new Array(6);
@@ -338,8 +388,7 @@ function buildStrum() {
 }
 function strumStringFromPoint(x, y) {
   const el = document.elementFromPoint(x, y);
-  if (!el) return -1;
-  const row = el.closest && el.closest(".strum-row");
+  const row = el && el.closest && el.closest(".strum-row");
   return row ? parseInt(row.dataset.si, 10) : -1;
 }
 let strumming = false, lastRow = -1;
@@ -349,20 +398,25 @@ strumEl.addEventListener("pointerdown", (e) => {
   strumming = true;
   const i = strumStringFromPoint(e.clientX, e.clientY); lastRow = i;
   if (i >= 0) playString(i);
-  strumEl.setPointerCapture(e.pointerId);
+  try { strumEl.setPointerCapture(e.pointerId); } catch (err) {}
 });
 strumEl.addEventListener("pointermove", (e) => {
   if (!strumming) return;
   e.preventDefault();
   const i = strumStringFromPoint(e.clientX, e.clientY);
-  if (i >= 0 && i !== lastRow) {
-    playString(i);
-    lastRow = i;
-  }
+  if (i >= 0 && i !== lastRow) { playString(i); lastRow = i; }
 });
 function endStrum() { strumming = false; lastRow = -1; }
 strumEl.addEventListener("pointerup", endStrum);
 strumEl.addEventListener("pointercancel", endStrum);
+window.addEventListener("pointerup", endStrum);
+
+function flashString(i) {
+  const line = stringRows[i].line;
+  line.classList.remove("pluck"); void line.offsetWidth; line.classList.add("pluck");
+  const stub = strumRows[i] && strumRows[i].querySelector(".stub");
+  if (stub) { stub.classList.remove("pluck"); void stub.offsetWidth; stub.classList.add("pluck"); }
+}
 
 /* ============================================================
    TILT (optional)
@@ -399,7 +453,7 @@ buildStrum();
 document.getElementById("startBtn").addEventListener("click", () => {
   initAudio();
   if (ctx.state === "suspended") ctx.resume();
-  [0, 1, 2, 3, 4, 5].forEach((s) => pluckBuffer(soundingFreq(s))); // prime buffers
+  [0, 1, 2, 3, 4, 5].forEach((s) => pluckBuffer(OPEN_FREQ[s])); // prime buffers
   document.getElementById("start").classList.add("hidden");
 });
 </script>
