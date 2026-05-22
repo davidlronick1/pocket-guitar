@@ -8,16 +8,10 @@
 <title>Pocket Guitar</title>
 <style>
   :root {
-    --bg: #1a120b;
-    --wood: #3a2417;
-    --wood-light: #5a3a23;
-    --fb1: #4a2f1c;
-    --fb2: #311d11;
-    --amber: #e8a14b;
-    --amber-bright: #ffc777;
-    --string: #d9c4a3;
-    --text: #f3e7d3;
-    --muted: #8a7355;
+    --bg: #1a120b; --wood: #3a2417; --wood-light: #5a3a23;
+    --fb1: #4a2f1c; --fb2: #311d11;
+    --amber: #e8a14b; --amber-bright: #ffc777;
+    --string: #d9c4a3; --text: #f3e7d3; --muted: #8a7355;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -46,7 +40,6 @@
 
   /* ---- play area: fretboard + strum ---- */
   #play { flex: 1; display: flex; min-height: 0; }
-
   #fretboard {
     flex: 1; display: flex; flex-direction: column; min-width: 0;
     background: linear-gradient(160deg, var(--fb1), var(--fb2) 70%, #271810);
@@ -67,7 +60,6 @@
     border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.5);
     pointer-events: none; z-index: 1;
   }
-  .fret-row.muted .string-line { opacity: .22; }
   .string-line.pluck { animation: pluck .5s ease-out; }
   @keyframes pluck {
     0%   { filter: none; transform: translateY(-50%) scaleY(1); }
@@ -79,15 +71,12 @@
     border-right: 2px solid rgba(0,0,0,.45);
   }
   .cell.nut {
-    flex: 0 0 46px;
-    border-right: 4px solid #e8d9b5;
+    flex: 0 0 46px; border-right: 4px solid #e8d9b5;
     background: linear-gradient(90deg, rgba(0,0,0,.25), rgba(0,0,0,0));
   }
-  /* fretboard inlay dots (decoration) on frets 3 & 5, middle strings */
   .cell.inlay::before {
     content: ''; position: absolute; left: 50%; top: 0; width: 7px; height: 7px;
-    transform: translate(-50%, -3.5px); border-radius: 50%;
-    background: rgba(255,245,220,.18);
+    transform: translate(-50%, -3.5px); border-radius: 50%; background: rgba(255,245,220,.18);
   }
   .cell.pressed::after {
     content: ''; position: absolute; left: 50%; top: 50%;
@@ -96,11 +85,9 @@
     box-shadow: 0 1px 4px rgba(0,0,0,.6); z-index: 3;
   }
   .cell.nut::after {
-    content: attr(data-mark); position: absolute; left: 50%; top: 50%;
-    transform: translate(-50%, -50%); font-size: 13px; font-weight: 700;
-    color: rgba(255,255,255,.55);
+    content: "O"; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%); font-size: 12px; font-weight: 700; color: rgba(255,255,255,.4);
   }
-  .cell.nut[data-mark="\00d7"]::after { color: #e87a5a; }
 
   /* ---- strum strip ---- */
   #strum {
@@ -137,7 +124,7 @@
   }
   .overlay h2 { font-size: 26px; margin: 0 0 6px; }
   .overlay h2 span { color: var(--amber); }
-  .overlay p { color: var(--muted); max-width: 360px; line-height: 1.5; margin: 6px 0 22px; }
+  .overlay p { color: var(--muted); max-width: 380px; line-height: 1.5; margin: 6px 0 22px; }
   #startBtn {
     font-size: 17px; font-weight: 700; color: #2a1a0a;
     background: linear-gradient(160deg, var(--amber-bright), var(--amber));
@@ -149,7 +136,6 @@
   @keyframes rock { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(78deg); } }
   .hidden { display: none !important; }
 
-  /* show rotate overlay only in portrait */
   #rotate { display: none; }
   @media (orientation: portrait) {
     #rotate { display: flex; }
@@ -162,7 +148,6 @@
   <div id="topbar">
     <h1>Pocket <span>Guitar</span></h1>
     <div class="controls">
-      <div id="resetChip" class="chip">Open strings</div>
       <div id="tiltChip" class="chip">Tilt: off</div>
     </div>
   </div>
@@ -172,14 +157,12 @@
   </div>
 </div>
 
-<!-- start / audio-unlock overlay -->
 <div id="start" class="overlay">
   <h2>Pocket <span>Guitar</span></h2>
-  <p>Hold your phone sideways. Press the frets with your left fingers to shape a chord, then strum or pick the strings on the right. Strum faster to play louder.</p>
+  <p>Hold your phone sideways. Hold down frets with your left fingers (a few at once) to shape a chord, then strum or pick the strings on the right. Let go and the string rings open. Strum faster to play louder.</p>
   <button id="startBtn">Tap to start playing</button>
 </div>
 
-<!-- portrait nudge -->
 <div id="rotate" class="overlay">
   <div class="rotate-icon">&#128241;</div>
   <h2>Turn sideways</h2>
@@ -190,19 +173,23 @@
 "use strict";
 
 /* ============================================================
-   MUSIC DATA  —  standard tuning, low E (string 0) to high E (5)
+   MUSIC DATA  —  standard tuning, string index 0 = low E ... 5 = high e
+   DISPLAY_ORDER lays them top-to-bottom on screen: high e on top, low E on bottom.
    ============================================================ */
 const OPEN_FREQ = [82.4069, 110.0, 146.832, 195.998, 246.942, 329.628];
-const STRING_NAMES = ["E", "A", "D", "G", "B", "e"];
-const NUM_FRETS = 5; // playable frets 1..5, plus the open nut
+const NUM_FRETS = 5;
+const DISPLAY_ORDER = [5, 4, 3, 2, 1, 0]; // top -> bottom
 
-// Per-string state: { fret: number|null (null = open), muted: bool }
-const fretState = OPEN_FREQ.map(() => ({ fret: null, muted: false }));
+/* Momentary fretting: a pointer (finger) holds a fret only while down. */
+const pressed = new Map(); // pointerId -> { i, c }
 
+function currentFret(i) {
+  let max = null;
+  for (const v of pressed.values()) if (v.i === i && (max === null || v.c > max)) max = v.c;
+  return max; // null = open
+}
 function soundingFreq(i) {
-  const st = fretState[i];
-  if (st.muted) return null;
-  const fret = st.fret || 0;
+  const fret = currentFret(i) || 0;
   return OPEN_FREQ[i] * Math.pow(2, fret / 12);
 }
 
@@ -216,25 +203,13 @@ function initAudio() {
   if (ctx) return;
   const AC = window.AudioContext || window.webkitAudioContext;
   ctx = new AC();
-  master = ctx.createGain();
-  master.gain.value = 0.9;
-
-  const tone = ctx.createBiquadFilter();
-  tone.type = "lowpass";
-  tone.frequency.value = 5500;
-
-  const convolver = ctx.createConvolver();
-  convolver.buffer = makeImpulse(1.6, 2.2);
-  reverbWet = ctx.createGain();
-  reverbWet.gain.value = 0.18;
-
-  master.connect(tone);
-  tone.connect(ctx.destination);
-  tone.connect(convolver);
-  convolver.connect(reverbWet);
-  reverbWet.connect(ctx.destination);
+  master = ctx.createGain(); master.gain.value = 0.9;
+  const tone = ctx.createBiquadFilter(); tone.type = "lowpass"; tone.frequency.value = 5500;
+  const convolver = ctx.createConvolver(); convolver.buffer = makeImpulse(1.6, 2.2);
+  reverbWet = ctx.createGain(); reverbWet.gain.value = 0.18;
+  master.connect(tone); tone.connect(ctx.destination);
+  tone.connect(convolver); convolver.connect(reverbWet); reverbWet.connect(ctx.destination);
 }
-
 function makeImpulse(seconds, decay) {
   const len = Math.floor(ctx.sampleRate * seconds);
   const buf = ctx.createBuffer(2, len, ctx.sampleRate);
@@ -244,34 +219,26 @@ function makeImpulse(seconds, decay) {
   }
   return buf;
 }
-
 function pluckBuffer(freq) {
   const key = Math.round(freq * 2);
   if (bufferCache.has(key)) return bufferCache.get(key);
   const sr = ctx.sampleRate;
   const N = Math.max(2, Math.round(sr / freq));
-  const duration = 3.2;
-  const len = Math.floor(sr * duration);
+  const len = Math.floor(sr * 3.2);
   const buf = ctx.createBuffer(1, len, sr);
   const y = buf.getChannelData(0);
   let prev = 0;
-  for (let i = 0; i < N; i++) {
-    const raw = Math.random() * 2 - 1;
-    prev = 0.5 * (raw + prev);
-    y[i] = prev;
-  }
+  for (let i = 0; i < N; i++) { const raw = Math.random() * 2 - 1; prev = 0.5 * (raw + prev); y[i] = prev; }
   const damping = 0.998 - Math.min(0.01, freq / 90000);
   for (let i = N; i < len; i++) y[i] = damping * 0.5 * (y[i - N] + y[i - N + 1]);
   bufferCache.set(key, buf);
   return buf;
 }
-
 function playString(i, velocity, when) {
-  const freq = soundingFreq(i);
-  if (freq == null) { mutedTick(i); return; } // muted string: soft percussive tick
+  if (!ctx) return;
   const t = when != null ? when : ctx.currentTime;
   const src = ctx.createBufferSource();
-  src.buffer = pluckBuffer(freq);
+  src.buffer = pluckBuffer(soundingFreq(i));
   src.detune.value = (Math.random() - 0.5) * 6;
   const g = ctx.createGain();
   g.gain.value = Math.max(0.06, Math.min(1, velocity));
@@ -280,29 +247,13 @@ function playString(i, velocity, when) {
   flashString(i);
 }
 
-// short muted "chuck" so muted strings still feel responsive
-function mutedTick(i) {
-  const t = ctx.currentTime;
-  const len = Math.floor(ctx.sampleRate * 0.04);
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let k = 0; k < len; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / len);
-  const src = ctx.createBufferSource(); src.buffer = buf;
-  const g = ctx.createGain(); g.gain.value = 0.12;
-  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
-  src.connect(lp); lp.connect(g); g.connect(master);
-  src.start(t);
-  flashString(i);
-}
-
 /* ============================================================
-   FRETBOARD UI
+   FRETBOARD UI  (built top-to-bottom in DISPLAY_ORDER)
    ============================================================ */
 const fbEl = document.getElementById("fretboard");
-const stringRows = []; // { row, line, cells:[] }
+const stringRows = new Array(6); // indexed by string index -> { line, cells }
 
 function buildFretboard() {
-  // fret-number header
   const head = document.createElement("div");
   head.id = "fbhead";
   for (let c = 0; c <= NUM_FRETS; c++) {
@@ -313,7 +264,8 @@ function buildFretboard() {
   }
   fbEl.appendChild(head);
 
-  for (let i = 0; i < 6; i++) {
+  for (let d = 0; d < 6; d++) {
+    const i = DISPLAY_ORDER[d];
     const row = document.createElement("div");
     row.className = "fret-row";
 
@@ -326,41 +278,33 @@ function buildFretboard() {
     for (let c = 0; c <= NUM_FRETS; c++) {
       const cell = document.createElement("div");
       cell.className = "cell" + (c === 0 ? " nut" : "");
-      // decorative position markers on frets 3 & 5 (middle of neck)
       if ((c === 3 || c === 5) && (i === 2 || i === 3)) cell.classList.add("inlay");
-      cell.addEventListener("pointerdown", (e) => { e.preventDefault(); onFretTap(i, c); });
+      if (c > 0) {
+        cell.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          cell.setPointerCapture(e.pointerId);
+          pressed.set(e.pointerId, { i, c });
+          renderPressed();
+        });
+        const up = (e) => { if (pressed.delete(e.pointerId)) renderPressed(); };
+        cell.addEventListener("pointerup", up);
+        cell.addEventListener("pointercancel", up);
+        cell.addEventListener("lostpointercapture", up);
+      }
       row.appendChild(cell);
       cells.push(cell);
     }
     fbEl.appendChild(row);
-    stringRows.push({ row, line, cells });
+    stringRows[i] = { line, cells };
   }
-  renderFretboard();
 }
 
-function onFretTap(i, c) {
-  const st = fretState[i];
-  if (c === 0) {
-    // nut: cycle mute on/off (also clears any fretted note)
-    if (st.muted) { st.muted = false; st.fret = null; }
-    else { st.muted = true; st.fret = null; }
-  } else {
-    if (st.fret === c) st.fret = null;       // tap same fret to lift finger
-    else { st.fret = c; st.muted = false; }  // press a new fret
+function renderPressed() {
+  const set = new Set([...pressed.values()].map((v) => v.i + ":" + v.c));
+  for (let i = 0; i < 6; i++) {
+    const cells = stringRows[i].cells;
+    for (let c = 1; c <= NUM_FRETS; c++) cells[c].classList.toggle("pressed", set.has(i + ":" + c));
   }
-  renderFretboard();
-}
-
-function renderFretboard() {
-  stringRows.forEach(({ row, cells }, i) => {
-    const st = fretState[i];
-    cells.forEach((cell, c) => {
-      if (c > 0) cell.classList.toggle("pressed", st.fret === c);
-    });
-    const nut = cells[0];
-    nut.dataset.mark = st.muted ? "×" : (st.fret == null ? "O" : "");
-    row.classList.toggle("muted", st.muted);
-  });
 }
 
 function flashString(i) {
@@ -374,11 +318,12 @@ function flashString(i) {
    STRUM STRIP  —  strum + fingerpick with velocity
    ============================================================ */
 const strumEl = document.getElementById("strum");
-const strumRows = [];
-let strumRects = [];
+const strumRows = new Array(6);
+let strumRects = new Array(6);
 
 function buildStrum() {
-  for (let i = 0; i < 6; i++) {
+  for (let d = 0; d < 6; d++) {
+    const i = DISPLAY_ORDER[d];
     const r = document.createElement("div");
     r.className = "strum-row";
     const stub = document.createElement("div");
@@ -386,31 +331,25 @@ function buildStrum() {
     stub.style.setProperty("--thick", (5 - i * 0.55) + "px");
     r.appendChild(stub);
     strumEl.appendChild(r);
-    strumRows.push(r);
+    strumRows[i] = r;
   }
 }
-
-function measureStrum() { strumRects = strumRows.map((r) => r.getBoundingClientRect()); }
+function measureStrum() { for (let i = 0; i < 6; i++) strumRects[i] = strumRows[i].getBoundingClientRect(); }
 function strumRowAtY(y) {
-  for (let i = 0; i < strumRects.length; i++) {
-    const r = strumRects[i];
-    if (y >= r.top && y <= r.bottom) return i;
-  }
+  for (let i = 0; i < 6; i++) { const r = strumRects[i]; if (r && y >= r.top && y <= r.bottom) return i; }
   return -1;
 }
 function speedToVelocity(s) { return Math.max(0.18, Math.min(1, 0.18 + s * 0.32)); }
 
 let strumming = false, lastX = 0, lastY = 0, lastT = 0, lastRow = -1;
-
 strumEl.addEventListener("pointerdown", (e) => {
   if (!ctx) return;
   e.preventDefault();
   measureStrum();
   strumming = true;
   lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
-  const i = strumRowAtY(e.clientY);
-  lastRow = i;
-  if (i >= 0) playString(i, 0.72); // single tap = a pick
+  const i = strumRowAtY(e.clientY); lastRow = i;
+  if (i >= 0) playString(i, 0.72);
   strumEl.setPointerCapture(e.pointerId);
 });
 strumEl.addEventListener("pointermove", (e) => {
@@ -431,13 +370,8 @@ strumEl.addEventListener("pointerup", endStrum);
 strumEl.addEventListener("pointercancel", endStrum);
 
 /* ============================================================
-   CONTROLS
+   TILT (optional)
    ============================================================ */
-document.getElementById("resetChip").addEventListener("click", () => {
-  fretState.forEach((st) => { st.fret = null; st.muted = false; });
-  renderFretboard();
-});
-
 const tiltChip = document.getElementById("tiltChip");
 let tiltOn = false;
 tiltChip.addEventListener("click", async () => {
@@ -458,9 +392,8 @@ function disableTilt() {
 }
 function onTilt(e) {
   if (!ctx || !master) return;
-  const beta = e.beta || 0; // front/back tilt in landscape
-  const target = 0.9 + Math.sin(beta / 20) * 0.06;
-  master.gain.setTargetAtTime(target, ctx.currentTime, 0.08);
+  const beta = e.beta || 0;
+  master.gain.setTargetAtTime(0.9 + Math.sin(beta / 20) * 0.06, ctx.currentTime, 0.08);
 }
 
 /* ============================================================
@@ -468,15 +401,13 @@ function onTilt(e) {
    ============================================================ */
 buildFretboard();
 buildStrum();
-
 document.getElementById("startBtn").addEventListener("click", () => {
   initAudio();
   if (ctx.state === "suspended") ctx.resume();
-  playString(3, 0.0001); // silent warm-up so the first real note is instant
+  playString(3, 0.0001);
   measureStrum();
   document.getElementById("start").classList.add("hidden");
 });
-
 window.addEventListener("resize", () => setTimeout(measureStrum, 50));
 window.addEventListener("orientationchange", () => setTimeout(measureStrum, 250));
 </script>
