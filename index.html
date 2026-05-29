@@ -76,7 +76,7 @@
     background: linear-gradient(180deg, #fff0d6, var(--amber-bright));
     transform: translateY(1px); border-bottom-width: 2px;
   }
-  .palm-gap { flex: 2.6 1 0; min-height: 0; }
+  .palm-gap { flex: 1.0 1 0; min-height: 0; }
 
   .fret-row {
     flex: 1; position: relative; display: flex; min-height: 0;
@@ -148,7 +148,7 @@
   #posHint { font-size: 8px; color: var(--muted); writing-mode: vertical-rl; }
 
   #strum {
-    flex: 0 0 100px; display: flex; flex-direction: column;
+    flex: 0 0 150px; display: flex; flex-direction: column;
     border-left: 3px solid #1c120a;
     background:
       radial-gradient(circle at 50% 50%, rgba(0,0,0,.45), transparent 70%),
@@ -228,7 +228,7 @@ const NUM_FRETS = 5;
 const DISPLAY_ORDER = [5, 4, 3, 2, 1, 0];
 const dRowOf = (i) => DISPLAY_ORDER.indexOf(i);   // string index -> display row (0 top)
 const INLAY_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
-const MAX_POS = 12;                                 // how far up the neck the slider reaches
+const MAX_POS = 17;                                 // slider base reaches fret 18; with 5 columns the neck spans to the 22nd fret (standard electric)
 
 /* posOffset shifts the 5 visible fret columns up the neck: a fret column c
    actually sounds at semitone (c + posOffset). The nut (c=0) is always open. */
@@ -238,7 +238,7 @@ let posOffset = 0;
 const fingers = new Map();
 /* The barre: null, or { fret (column 1..5), dBot (lowest display row covered), pid } */
 let barre = null;
-const HEADER_H = 42, NUT_W = 30, GAP_GROW = 2.6;   // GAP_GROW = palm gap on the low-E side (must match .palm-gap flex)
+const HEADER_H = 42, NUT_W = 30, GAP_GROW = 1.0;   // GAP_GROW = palm gap on the low-E side (must match .palm-gap flex)
 
 function barreCovers(i) {            // is string i under the current barre?
   if (!barre) return false;
