@@ -12,7 +12,7 @@
     --fb1: #4a2f1c; --fb2: #311d11;
     --amber: #e8a14b; --amber-bright: #ffc777;
     --string: #d9c4a3; --text: #f3e7d3; --muted: #8a7355;
-    --headerH: 30px; --nutW: 30px;
+    --headerH: 42px; --nutW: 30px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -55,19 +55,28 @@
     background: linear-gradient(160deg, var(--fb1), var(--fb2) 70%, #271810);
   }
   /* Header row doubles as the BARRE button strip. */
-  #fbhead { display: flex; height: var(--headerH); flex: 0 0 auto; padding: 3px 0 0; }
+  #fbhead { display: flex; height: var(--headerH); flex: 0 0 auto; padding: 4px 0 2px; }
   .fhcell {
-    flex: 1; text-align: center; font-size: 10px; color: rgba(255,255,255,.5);
+    flex: 1; text-align: center; font-size: 11px; color: var(--muted);
     display: flex; align-items: center; justify-content: center;
   }
-  .fhcell.nut { flex: 0 0 var(--nutW); }
+  .fhcell.nut { flex: 0 0 var(--nutW); font-size: 8px; font-weight: 800; color: var(--amber); letter-spacing: .3px; }
   .fhcell.barbtn {
-    margin: 0 2px; border-radius: 6px 6px 3px 3px; font-weight: 700; color: var(--amber);
-    background: linear-gradient(180deg, #3c2715, #2a1a0e);
-    border: 1px solid #5a3a1f; border-bottom: 2px solid #6b4426;
-    box-shadow: inset 0 1px 0 rgba(255,220,160,.12);
+    margin: 0 3px; border-radius: 8px 8px 4px 4px; font-weight: 800; font-size: 13px; color: #2a1a0a; gap: 6px;
+    background: linear-gradient(180deg, var(--amber-bright), var(--amber) 65%, #cf8a35);
+    border: 1px solid #b9742a; border-bottom: 3px solid #8a531d;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 2px 4px rgba(0,0,0,.45);
   }
-  .fhcell.barbtn.active { color: #2a1a0a; background: linear-gradient(180deg, var(--amber-bright), var(--amber)); }
+  .fhcell.barbtn::before {
+    content: ""; flex: 0 0 auto; width: 15px; height: 3px; border-radius: 2px;
+    background: rgba(42,26,10,.5);
+    box-shadow: 0 5px 0 rgba(42,26,10,.5), 0 -5px 0 rgba(42,26,10,.5);
+  }
+  .fhcell.barbtn:active, .fhcell.barbtn.active {
+    background: linear-gradient(180deg, #fff0d6, var(--amber-bright));
+    transform: translateY(1px); border-bottom-width: 2px;
+  }
+  .palm-gap { flex: 1.3 1 0; min-height: 0; }
 
   .fret-row {
     flex: 1; position: relative; display: flex; min-height: 0;
@@ -203,7 +212,7 @@
 
 <div id="start">
   <h2>Pocket <span>Guitar</span></h2>
-  <p>Hold your phone sideways. Press frets with your left fingers to shape a chord, then strum or pick on the right. While a string rings you can hammer onto a higher fret or slide your finger along it. Tap and hold a <b>BARRE</b> button above a fret to lay a full barre across the strings &mdash; drag it sideways to change frets, drag it down the strings to shrink it, let go to remove it. Use the slider by your strumming hand to move up and down the neck.</p>
+  <p>Hold your phone sideways. Press frets with your left fingers to shape a chord, then strum or pick on the right. While a string rings you can hammer onto a higher fret or slide your finger along it. Tap and hold a <b>BARRE</b> button above a fret to lay a full barre across the strings &mdash; drag it sideways to change frets, drag it toward the high-e string to shrink it, let go to remove it. Use the slider by your strumming hand to move up and down the neck.</p>
   <button id="startBtn">Tap to start playing</button>
 </div>
 
@@ -227,13 +236,13 @@ let posOffset = 0;
 
 /* Fretting fingers: pointerId -> { i (string), c (fret column, 0 = open/none) } */
 const fingers = new Map();
-/* The barre: null, or { fret (column 1..5), dTop (topmost display row covered), pid } */
+/* The barre: null, or { fret (column 1..5), dBot (lowest display row covered), pid } */
 let barre = null;
-const HEADER_H = 30, NUT_W = 30;
+const HEADER_H = 42, NUT_W = 30, GAP_GROW = 1.3;   // GAP_GROW = palm gap on the low-E side
 
 function barreCovers(i) {            // is string i under the current barre?
   if (!barre) return false;
-  return dRowOf(i) >= barre.dTop;    // covers from dTop down to the bottom (low E)
+  return dRowOf(i) <= barre.dBot;    // covers from the high-e edge down to dBot
 }
 function coveredStrings() {
   const out = [];
@@ -417,12 +426,13 @@ function buildFretboard() {
     fbEl.appendChild(row);
     stringRows[i] = { line, cells };
   }
+  const gap = document.createElement("div"); gap.className = "palm-gap"; fbEl.appendChild(gap);
   const bar = document.createElement("div");
   bar.id = "barreBar";
   fbEl.appendChild(bar);
   updateFretLabels();
 }
-function head_appendNum(h, c) { h.textContent = c === 0 ? "" : (c + posOffset); }
+function head_appendNum(h, c) { h.textContent = c === 0 ? "BARRE" : (c + posOffset); }
 
 // Refresh fret-number labels and inlay dots after the position changes.
 function updateFretLabels() {
@@ -474,11 +484,11 @@ function updateBarreBar() {
   for (let c = 1; c <= NUM_FRETS; c++) if (fretHeadCells[c]) fretHeadCells[c].classList.toggle("active", !!barre && barre.fret === c);
   if (!barre) { el.style.display = "none"; return; }
   const W = fbEl.clientWidth, H = fbEl.clientHeight;
-  const rowsH = H - HEADER_H, rowH = rowsH / 6;
+  const rowsH = H - HEADER_H, rowH = rowsH / (6 + GAP_GROW);
   const cellW = (W - NUT_W) / NUM_FRETS;
   const left = NUT_W + (barre.fret - 1) * cellW;
-  const top = HEADER_H + barre.dTop * rowH;
-  const height = (6 - barre.dTop) * rowH;
+  const top = HEADER_H;                          // barre starts at the high-e edge
+  const height = (barre.dBot + 1) * rowH;         // ...and extends down to the dragged string
   el.style.left = (left + 6) + "px";
   el.style.width = Math.max(8, cellW - 12) + "px";
   el.style.top = (top + 4) + "px";
@@ -495,7 +505,7 @@ fbEl.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     try { fbEl.setPointerCapture(e.pointerId); } catch (err) {}
     const prev = snapshotFrets();
-    barre = { fret: c, dTop: 0, pid: e.pointerId };   // start covering ALL strings
+    barre = { fret: c, dBot: 5, pid: e.pointerId };   // start covering ALL strings
     renderPressed(); updateBarreBar();
     glideChanged(prev);             // hammer any ringing strings up to the barre
     return;
@@ -517,10 +527,10 @@ fbEl.addEventListener("pointermove", (e) => {
     e.preventDefault();
     const hit = nearestCell(e.clientX, e.clientY);
     if (!hit) return;
-    const newFret = hit.c, newTop = dRowOf(hit.i);  // pointer marks barre's top edge
-    if (newFret === barre.fret && newTop === barre.dTop) return;
+    const newFret = hit.c, newBot = dRowOf(hit.i);  // pointer marks the barre's low end
+    if (newFret === barre.fret && newBot === barre.dBot) return;
     const prev = snapshotFrets();
-    barre.fret = newFret; barre.dTop = newTop;
+    barre.fret = newFret; barre.dBot = newBot;
     renderPressed(); updateBarreBar();
     glideChanged(prev);
     return;
@@ -651,6 +661,7 @@ function buildStrum() {
     strumEl.appendChild(r);
     strumRows[i] = r;
   }
+  const sgap = document.createElement("div"); sgap.className = "palm-gap"; strumEl.appendChild(sgap);
 }
 function strumStringFromPoint(x, y) {
   const el = document.elementFromPoint(x, y);
