@@ -12,6 +12,7 @@
     --fb1: #4a2f1c; --fb2: #311d11;
     --amber: #e8a14b; --amber-bright: #ffc777;
     --string: #d9c4a3; --text: #f3e7d3; --muted: #8a7355;
+    --headerH: 30px; --nutW: 30px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -50,12 +51,23 @@
 
   #play { flex: 1; display: flex; min-height: 0; }
   #fretboard {
-    flex: 1; display: flex; flex-direction: column; min-width: 0;
+    flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0;
     background: linear-gradient(160deg, var(--fb1), var(--fb2) 70%, #271810);
   }
-  #fbhead { display: flex; height: 16px; flex: 0 0 auto; }
-  .fhcell { flex: 1; text-align: center; font-size: 9px; line-height: 16px; color: rgba(255,255,255,.4); }
-  .fhcell.nut { flex: 0 0 46px; }
+  /* Header row doubles as the BARRE button strip. */
+  #fbhead { display: flex; height: var(--headerH); flex: 0 0 auto; padding: 3px 0 0; }
+  .fhcell {
+    flex: 1; text-align: center; font-size: 10px; color: rgba(255,255,255,.5);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fhcell.nut { flex: 0 0 var(--nutW); }
+  .fhcell.barbtn {
+    margin: 0 2px; border-radius: 6px 6px 3px 3px; font-weight: 700; color: var(--amber);
+    background: linear-gradient(180deg, #3c2715, #2a1a0e);
+    border: 1px solid #5a3a1f; border-bottom: 2px solid #6b4426;
+    box-shadow: inset 0 1px 0 rgba(255,220,160,.12);
+  }
+  .fhcell.barbtn.active { color: #2a1a0a; background: linear-gradient(180deg, var(--amber-bright), var(--amber)); }
 
   .fret-row {
     flex: 1; position: relative; display: flex; min-height: 0;
@@ -63,7 +75,7 @@
   }
   .fret-row:last-child { border-bottom: none; }
   .string-line {
-    position: absolute; left: 46px; right: 0; top: 50%;
+    position: absolute; left: var(--nutW); right: 0; top: 50%;
     height: var(--thick, 2px); transform: translateY(-50%);
     background: linear-gradient(180deg, #fff6e0, var(--string) 40%, #9c8763);
     border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.5);
@@ -80,7 +92,7 @@
     border-right: 2px solid rgba(0,0,0,.45);
   }
   .cell.nut {
-    flex: 0 0 46px; border-right: 4px solid #e8d9b5;
+    flex: 0 0 var(--nutW); border-right: 4px solid #e8d9b5;
     background: linear-gradient(90deg, rgba(0,0,0,.25), rgba(0,0,0,0));
   }
   .cell.inlay::before {
@@ -89,7 +101,7 @@
   }
   .cell.pressed::after {
     content: ''; position: absolute; left: 50%; top: 50%;
-    width: 26px; height: 26px; transform: translate(-50%, -50%); border-radius: 50%;
+    width: 30px; height: 30px; transform: translate(-50%, -50%); border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #fff, var(--amber) 55%, #b9742a);
     box-shadow: 0 1px 4px rgba(0,0,0,.6); z-index: 3;
   }
@@ -98,8 +110,36 @@
     transform: translate(-50%, -50%); font-size: 12px; font-weight: 700; color: rgba(255,255,255,.4);
   }
 
+  /* The draggable barre bar overlay. */
+  #barreBar {
+    position: absolute; z-index: 4; border-radius: 7px; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,225,170,.95), rgba(232,161,75,.92));
+    box-shadow: 0 2px 8px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.5);
+    display: none;
+  }
+
+  /* POSITION slider — shifts which frets are shown, "up and down the neck". */
+  #position {
+    flex: 0 0 42px; display: flex; flex-direction: column; align-items: center;
+    padding: 6px 0; gap: 6px; border-left: 2px solid #1c120a;
+    background: linear-gradient(180deg, #2a1a10, #1f150d);
+  }
+  #posLabel { font-size: 10px; color: var(--amber); font-weight: 700; text-align: center; line-height: 1.1; }
+  #posTrack {
+    flex: 1; width: 14px; position: relative; border-radius: 8px;
+    background: linear-gradient(180deg, #120c07, #241710);
+    border: 1px solid #4a3019; box-shadow: inset 0 0 6px rgba(0,0,0,.6);
+  }
+  #posThumb {
+    position: absolute; left: 50%; width: 30px; height: 26px;
+    transform: translate(-50%, -50%); border-radius: 7px;
+    background: linear-gradient(180deg, var(--amber-bright), var(--amber));
+    border: 1px solid #b9742a; box-shadow: 0 2px 6px rgba(0,0,0,.5);
+  }
+  #posHint { font-size: 8px; color: var(--muted); writing-mode: vertical-rl; }
+
   #strum {
-    flex: 0 0 116px; display: flex; flex-direction: column;
+    flex: 0 0 100px; display: flex; flex-direction: column;
     border-left: 3px solid #1c120a;
     background:
       radial-gradient(circle at 50% 50%, rgba(0,0,0,.45), transparent 70%),
@@ -131,7 +171,7 @@
   }
   #start h2 { font-size: 26px; margin: 0 0 6px; }
   #start h2 span { color: var(--amber); }
-  #start p { color: var(--muted); max-width: 400px; line-height: 1.5; margin: 6px 0 22px; }
+  #start p { color: var(--muted); max-width: 420px; line-height: 1.5; margin: 6px 0 22px; }
   #startBtn {
     font-size: 17px; font-weight: 700; color: #2a1a0a;
     background: linear-gradient(160deg, var(--amber-bright), var(--amber));
@@ -152,13 +192,18 @@
   </div>
   <div id="play">
     <div id="fretboard"></div>
+    <div id="position">
+      <div id="posLabel">1st</div>
+      <div id="posTrack"><div id="posThumb"></div></div>
+      <div id="posHint">neck</div>
+    </div>
     <div id="strum"><div id="strumLabel">strum / pick &rarr;</div></div>
   </div>
 </div>
 
 <div id="start">
   <h2>Pocket <span>Guitar</span></h2>
-  <p>Hold your phone sideways. Press frets with your left fingers to shape a chord, then strum or pick on the right. While a string rings you can hammer onto a higher fret or slide your finger along it. Let go and the note stops.</p>
+  <p>Hold your phone sideways. Press frets with your left fingers to shape a chord, then strum or pick on the right. While a string rings you can hammer onto a higher fret or slide your finger along it. Tap and hold a <b>BARRE</b> button above a fret to lay a full barre across the strings &mdash; drag it sideways to change frets, drag it down the strings to shrink it, let go to remove it. Use the slider by your strumming hand to move up and down the neck.</p>
   <button id="startBtn">Tap to start playing</button>
 </div>
 
@@ -172,17 +217,40 @@
 const OPEN_FREQ = [82.4069, 110.0, 146.832, 195.998, 246.942, 329.628];
 const NUM_FRETS = 5;
 const DISPLAY_ORDER = [5, 4, 3, 2, 1, 0];
+const dRowOf = (i) => DISPLAY_ORDER.indexOf(i);   // string index -> display row (0 top)
+const INLAY_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
+const MAX_POS = 12;                                 // how far up the neck the slider reaches
 
-/* Fretting fingers: pointerId -> { i (string), c (fret, 0 = open/none) } */
+/* posOffset shifts the 5 visible fret columns up the neck: a fret column c
+   actually sounds at semitone (c + posOffset). The nut (c=0) is always open. */
+let posOffset = 0;
+
+/* Fretting fingers: pointerId -> { i (string), c (fret column, 0 = open/none) } */
 const fingers = new Map();
-function currentFret(i) {            // highest held fret (>0) on string i, or null
+/* The barre: null, or { fret (column 1..5), dTop (topmost display row covered), pid } */
+let barre = null;
+const HEADER_H = 30, NUT_W = 30;
+
+function barreCovers(i) {            // is string i under the current barre?
+  if (!barre) return false;
+  return dRowOf(i) >= barre.dTop;    // covers from dTop down to the bottom (low E)
+}
+function coveredStrings() {
+  const out = [];
+  if (barre) for (let i = 0; i < 6; i++) if (barreCovers(i)) out.push(i);
+  return out;
+}
+function currentFret(i) {            // highest held fret column (>0) on string i, or null
   let max = null;
   for (const v of fingers.values()) if (v.i === i && v.c > 0 && (max === null || v.c > max)) max = v.c;
+  if (barreCovers(i) && (max === null || barre.fret > max)) max = barre.fret;
   return max;
 }
 function soundingFret(i) { const f = currentFret(i); return f === null ? 0 : f; }
-function soundingFreq(i) { return OPEN_FREQ[i] * Math.pow(2, soundingFret(i) / 12); }
+function fretSemitone(c) { return c === 0 ? 0 : c + posOffset; }       // column -> semitone above open
+function soundingFreq(i) { return OPEN_FREQ[i] * Math.pow(2, fretSemitone(soundingFret(i)) / 12); }
 function fingersOnString(i) { for (const v of fingers.values()) if (v.i === i) return true; return false; }
+function anyHoldOnString(i) { return fingersOnString(i) || barreCovers(i); }
 
 /* ============================================================
    AUDIO ENGINE — Karplus-Strong, with one managed voice per string
@@ -192,7 +260,7 @@ let ctx = null, master = null, reverbWet = null;
 const bufferCache = new Map();
 const voices = new Array(6).fill(null); // current ringing voice per string
 const PICK_VOL = 0.6;                          // every pick/strum hits at the same volume
-const HAMMER_GLIDE = 0.04, SLIDE_GLIDE = 0.12; // seconds to bend pitch (hammer = quick, slide = smooth)
+const HAMMER_GLIDE = 0.022, SLIDE_GLIDE = 0.10; // seconds to bend pitch (hammer = quick, slide = smooth)
 const RING_SECONDS = 3.0;                      // every string rings for this long, regardless of pitch
 
 function initAudio() {
@@ -268,7 +336,7 @@ function startVoice(i, vol) {
   const base = soundingFreq(i);
   const src = ctx.createBufferSource();
   src.buffer = pluckBuffer(base);
-  src.detune.value = (Math.random() - 0.5) * 6;
+  src.detune.value = (Math.random() - 0.5) * 3;   // less random detune -> less beating/buzz
   const g = ctx.createGain();
   g.gain.value = vol;
   src.connect(g); g.connect(master);
@@ -280,18 +348,30 @@ function startVoice(i, vol) {
   flashString(i);
 }
 // Smoothly bend a ringing string to its current pitch (hammer-on / slide / pull-off)
-// by ramping the playing buffer's rate — no re-pluck, so the pitch glides instead of switching.
+// by ramping the playing buffer's rate — exponential ramp = a natural, musical glide.
 function glideVoice(i, glideTime) {
   const v = voices[i];
   if (!v) return;
-  const target = soundingFreq(i) / v.baseFreq;
+  const target = Math.max(0.06, soundingFreq(i) / v.baseFreq);
   const now = ctx.currentTime;
   const p = v.src.playbackRate;
+  const cur = Math.max(0.06, p.value);
   p.cancelScheduledValues(now);
-  p.setValueAtTime(p.value, now);
-  p.linearRampToValueAtTime(Math.max(0.05, target), now + glideTime);
+  p.setValueAtTime(cur, now);
+  p.exponentialRampToValueAtTime(target, now + glideTime);
 }
 function playString(i) { startVoice(i, PICK_VOL); } // a strum/pick hit (a fresh attack)
+
+// Re-glide every string whose sounding pitch changed vs a snapshot (used by the barre).
+function snapshotFrets() { const a = []; for (let i = 0; i < 6; i++) a[i] = soundingFret(i); return a; }
+function glideChanged(prev) {
+  if (!ctx) return;
+  for (let i = 0; i < 6; i++) {
+    if (!voices[i]) continue;
+    const after = soundingFret(i);
+    if (after !== prev[i]) glideVoice(i, after > prev[i] ? HAMMER_GLIDE : SLIDE_GLIDE);
+  }
+}
 
 /* ============================================================
    FRETBOARD UI + INTERACTION
@@ -299,17 +379,21 @@ function playString(i) { startVoice(i, PICK_VOL); } // a strum/pick hit (a fresh
    ============================================================ */
 const fbEl = document.getElementById("fretboard");
 const stringRows = new Array(6);
+const headEl = document.createElement("div");
+const allCells = [];
+const fretHeadCells = [];   // header barre buttons, index = fret column (1..5)
 
 function buildFretboard() {
-  const head = document.createElement("div");
-  head.id = "fbhead";
+  headEl.id = "fbhead";
   for (let c = 0; c <= NUM_FRETS; c++) {
     const h = document.createElement("div");
-    h.className = "fhcell" + (c === 0 ? " nut" : "");
-    h.textContent = c === 0 ? "" : c;
-    head.appendChild(h);
+    h.className = "fhcell" + (c === 0 ? " nut" : " barbtn");
+    h.dataset.fret = c;
+    if (c > 0) fretHeadCells[c] = h;
+    head_appendNum(h, c);
+    headEl.appendChild(h);
   }
-  fbEl.appendChild(head);
+  fbEl.appendChild(headEl);
 
   for (let d = 0; d < 6; d++) {
     const i = DISPLAY_ORDER[d];
@@ -326,34 +410,97 @@ function buildFretboard() {
       cell.className = "cell" + (c === 0 ? " nut" : "");
       cell.dataset.si = i;
       cell.dataset.fret = c;            // nut = 0
-      if ((c === 3 || c === 5) && (i === 2 || i === 3)) cell.classList.add("inlay");
       row.appendChild(cell);
       cells.push(cell);
+      if (c > 0) allCells.push(cell);
     }
     fbEl.appendChild(row);
     stringRows[i] = { line, cells };
   }
+  const bar = document.createElement("div");
+  bar.id = "barreBar";
+  fbEl.appendChild(bar);
+  updateFretLabels();
+}
+function head_appendNum(h, c) { h.textContent = c === 0 ? "" : (c + posOffset); }
+
+// Refresh fret-number labels and inlay dots after the position changes.
+function updateFretLabels() {
+  for (let c = 1; c <= NUM_FRETS; c++) if (fretHeadCells[c]) fretHeadCells[c].textContent = c + posOffset;
+  for (let i = 0; i < 6; i++) {
+    for (let c = 1; c <= NUM_FRETS; c++) {
+      const on = INLAY_FRETS.has(c + posOffset) && (i === 2 || i === 3);
+      stringRows[i].cells[c].classList.toggle("inlay", on);
+    }
+  }
 }
 
-// Which { string, fret } is under a screen point (handles the CSS rotation).
-function cellAtPoint(x, y) {
+// Nearest fret cell to a screen point. Snaps to the closest cell so finger
+// presses register even if you land a little off — much more forgiving hitboxes.
+// (A 90deg CSS rotation keeps rectangles axis-aligned, so screen rects are valid.)
+function nearestCell(x, y) {
+  // exact hit first
   const el = document.elementFromPoint(x, y);
   const cell = el && el.closest && el.closest(".cell");
-  if (!cell || cell.dataset.fret === undefined) return null;
-  return { i: +cell.dataset.si, c: +cell.dataset.fret };
+  if (cell && cell.dataset.fret !== undefined && +cell.dataset.fret > 0)
+    return { i: +cell.dataset.si, c: +cell.dataset.fret };
+  // otherwise snap to the closest fretted cell
+  let best = null, bd = Infinity;
+  for (const r of allCells) {
+    const b = r.getBoundingClientRect();
+    const cx = Math.max(b.left, Math.min(x, b.right));
+    const cy = Math.max(b.top, Math.min(y, b.bottom));
+    const d = (cx - x) * (cx - x) + (cy - y) * (cy - y);
+    if (d < bd) { bd = d; best = r; }
+  }
+  if (best && bd < 90 * 90) return { i: +best.dataset.si, c: +best.dataset.fret };
+  return null;
 }
 
 function renderPressed() {
   const set = new Set();
   for (const v of fingers.values()) if (v.c > 0) set.add(v.i + ":" + v.c);
+  if (barre) for (const i of coveredStrings()) set.add(i + ":" + barre.fret);
   for (let i = 0; i < 6; i++) {
     const cells = stringRows[i].cells;
     for (let c = 1; c <= NUM_FRETS; c++) cells[c].classList.toggle("pressed", set.has(i + ":" + c));
   }
 }
 
+// Draw the barre bar overlay analytically in layout space (rotation-safe).
+const barreBar = () => document.getElementById("barreBar");
+function updateBarreBar() {
+  const el = barreBar();
+  for (let c = 1; c <= NUM_FRETS; c++) if (fretHeadCells[c]) fretHeadCells[c].classList.toggle("active", !!barre && barre.fret === c);
+  if (!barre) { el.style.display = "none"; return; }
+  const W = fbEl.clientWidth, H = fbEl.clientHeight;
+  const rowsH = H - HEADER_H, rowH = rowsH / 6;
+  const cellW = (W - NUT_W) / NUM_FRETS;
+  const left = NUT_W + (barre.fret - 1) * cellW;
+  const top = HEADER_H + barre.dTop * rowH;
+  const height = (6 - barre.dTop) * rowH;
+  el.style.left = (left + 6) + "px";
+  el.style.width = Math.max(8, cellW - 12) + "px";
+  el.style.top = (top + 4) + "px";
+  el.style.height = Math.max(8, height - 8) + "px";
+  el.style.display = "block";
+}
+
+/* ---- Fretboard pointer handling: header = barre, rows = fingers ---- */
 fbEl.addEventListener("pointerdown", (e) => {
-  const hit = cellAtPoint(e.clientX, e.clientY);
+  const inHeader = e.target.closest && e.target.closest("#fbhead");
+  if (inHeader) {
+    const c = +inHeader.dataset.fret;
+    if (!c) return;                 // tapped the nut header
+    e.preventDefault();
+    try { fbEl.setPointerCapture(e.pointerId); } catch (err) {}
+    const prev = snapshotFrets();
+    barre = { fret: c, dTop: 0, pid: e.pointerId };   // start covering ALL strings
+    renderPressed(); updateBarreBar();
+    glideChanged(prev);             // hammer any ringing strings up to the barre
+    return;
+  }
+  const hit = nearestCell(e.clientX, e.clientY);
   if (!hit) return;
   e.preventDefault();
   try { fbEl.setPointerCapture(e.pointerId); } catch (err) {}
@@ -366,10 +513,22 @@ fbEl.addEventListener("pointerdown", (e) => {
 });
 
 fbEl.addEventListener("pointermove", (e) => {
+  if (barre && e.pointerId === barre.pid) {
+    e.preventDefault();
+    const hit = nearestCell(e.clientX, e.clientY);
+    if (!hit) return;
+    const newFret = hit.c, newTop = dRowOf(hit.i);  // pointer marks barre's top edge
+    if (newFret === barre.fret && newTop === barre.dTop) return;
+    const prev = snapshotFrets();
+    barre.fret = newFret; barre.dTop = newTop;
+    renderPressed(); updateBarreBar();
+    glideChanged(prev);
+    return;
+  }
   const cur = fingers.get(e.pointerId);
   if (!cur) return;
   e.preventDefault();
-  const hit = cellAtPoint(e.clientX, e.clientY);
+  const hit = nearestCell(e.clientX, e.clientY);
   if (!hit) return;
   // A slide stays on the finger's own string; only the fret (column) changes.
   const newC = hit.c;
@@ -382,21 +541,97 @@ fbEl.addEventListener("pointermove", (e) => {
   if (ctx && voices[cur.i] && after !== before) glideVoice(cur.i, SLIDE_GLIDE);
 });
 
+function releaseBarre() {
+  if (!barre) return;
+  const covered = coveredStrings();
+  const prev = snapshotFrets();
+  barre = null;
+  renderPressed(); updateBarreBar();
+  for (const i of covered) {
+    if (!anyHoldOnString(i)) { stopVoice(i, 0.04); }       // nothing left holding -> damp
+    else if (ctx && voices[i] && soundingFret(i) !== prev[i]) glideVoice(i, SLIDE_GLIDE); // pull-off to finger
+  }
+}
 function releaseFinger(pointerId) {
   const cur = fingers.get(pointerId);
   if (!cur) return;
   const before = soundingFret(cur.i);
   fingers.delete(pointerId);
   renderPressed();
-  // Let go to stop: if no fingers remain on that string, damp its note.
-  if (!fingersOnString(cur.i)) { stopVoice(cur.i, 0.04); return; }
-  // A lower finger still holds the string -> glide down to it (pull-off).
+  // Let go to stop: if nothing else holds that string, damp its note.
+  if (!anyHoldOnString(cur.i)) { stopVoice(cur.i, 0.04); return; }
+  // A lower hold still remains on the string -> glide down to it (pull-off).
   const after = soundingFret(cur.i);
   if (ctx && voices[cur.i] && after !== before) glideVoice(cur.i, SLIDE_GLIDE);
 }
+function releasePointer(pointerId) {
+  if (barre && pointerId === barre.pid) releaseBarre();
+  else releaseFinger(pointerId);
+}
 // Robust release — these fire even if pointer capture was lost (fixes stuck notes).
-window.addEventListener("pointerup", (e) => releaseFinger(e.pointerId));
-window.addEventListener("pointercancel", (e) => releaseFinger(e.pointerId));
+window.addEventListener("pointerup", (e) => releasePointer(e.pointerId));
+window.addEventListener("pointercancel", (e) => releasePointer(e.pointerId));
+window.addEventListener("lostpointercapture", (e) => releasePointer(e.pointerId));
+
+// SAFETY NET: when every touch has lifted, make sure no fretted note is left
+// ringing. Open/strummed strings (no finger, no barre) are left alone to ring.
+window.addEventListener("touchend", (e) => {
+  if (e.touches && e.touches.length === 0) {
+    const affected = new Set();
+    for (const v of fingers.values()) affected.add(v.i);
+    for (const i of coveredStrings()) affected.add(i);
+    fingers.clear(); barre = null;
+    renderPressed(); updateBarreBar();
+    for (const i of affected) if (!anyHoldOnString(i)) stopVoice(i, 0.04);
+  }
+}, { passive: true });
+
+/* ============================================================
+   POSITION SLIDER — shifts the visible frets up/down the neck.
+   Axis-aware so it works whether or not the app is CSS-rotated.
+   ============================================================ */
+const posTrack = document.getElementById("posTrack");
+const posThumb = document.getElementById("posThumb");
+const posLabel = document.getElementById("posLabel");
+const ORDINAL = (n) => { const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+
+function fracFromPoint(x, y) {
+  const r = posTrack.getBoundingClientRect();
+  // Use whichever screen axis is the track's long axis (handles the 90deg rotation).
+  if (r.height >= r.width) return clamp01((y - r.top) / r.height);
+  return clamp01((x - r.left) / r.width);
+}
+function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+function setPosFromFrac(frac) {
+  // top of track = high up the neck (large offset), bottom = open position.
+  const off = Math.round((1 - frac) * MAX_POS);
+  setPosition(off);
+}
+function setPosition(off) {
+  off = Math.max(0, Math.min(MAX_POS, off));
+  if (off === posOffset && posThumb.style.top) return renderPosThumb();
+  posOffset = off;
+  updateFretLabels(); updateBarreBar(); renderPosThumb();
+}
+function renderPosThumb() {
+  posThumb.style.top = ((1 - posOffset / MAX_POS) * 100) + "%";
+  posLabel.textContent = ORDINAL(posOffset + 1);
+}
+let posDragging = false;
+posTrack.addEventListener("pointerdown", (e) => {
+  e.preventDefault(); e.stopPropagation();
+  posDragging = true;
+  try { posTrack.setPointerCapture(e.pointerId); } catch (err) {}
+  setPosFromFrac(fracFromPoint(e.clientX, e.clientY));
+});
+posTrack.addEventListener("pointermove", (e) => {
+  if (!posDragging) return;
+  e.preventDefault(); e.stopPropagation();
+  setPosFromFrac(fracFromPoint(e.clientX, e.clientY));
+});
+function endPos() { posDragging = false; }
+posTrack.addEventListener("pointerup", endPos);
+posTrack.addEventListener("pointercancel", endPos);
 
 /* ============================================================
    STRUM STRIP — uses elementFromPoint so it survives the rotation.
@@ -481,6 +716,8 @@ function onTilt(e) {
    ============================================================ */
 buildFretboard();
 buildStrum();
+renderPosThumb();
+window.addEventListener("resize", updateBarreBar);
 document.getElementById("startBtn").addEventListener("click", () => {
   initAudio();
   if (ctx.state === "suspended") ctx.resume();
